@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: tivusat-cas-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: tivusat_cas
+      POSTGRES_USER: tivusat
+      POSTGRES_PASSWORD: tivusat
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
