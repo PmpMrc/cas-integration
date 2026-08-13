@@ -76,12 +76,67 @@ public class SmartcardEntity {
         return status;
     }
 
+    public boolean isAccountCreated() {
+        return accountCreated;
+    }
+
+    public boolean isDeviceCreated() {
+        return deviceCreated;
+    }
+
+    public String getEntitlementId() {
+        return entitlementId;
+    }
+
+    public String getProductId() {
+        return productId;
+    }
+
+    public String getCaSn() {
+        return caSn;
+    }
+
+    public Instant getExpiryDate() {
+        return expiryDate;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
     public void markPreloaded(String entitlementId, String productId, Instant expiryDate) {
         this.accountCreated = true;
         this.entitlementId = entitlementId;
         this.productId = productId;
         this.expiryDate = expiryDate;
         this.status = SmartcardStatus.PRELOADED;
+        this.updatedAt = Instant.now();
+    }
+
+    public void markEnabled(String caSn) {
+        this.status = SmartcardStatus.ENABLED;
+        this.deviceCreated = true;
+        this.caSn = caSn;
+        this.updatedAt = Instant.now();
+    }
+
+    public void markDisabled() {
+        this.status = SmartcardStatus.DISABLED;
+        this.updatedAt = Instant.now();
+    }
+
+    public void markDeleted() {
+        this.status = SmartcardStatus.DELETED;
+        this.updatedAt = Instant.now();
+    }
+
+    public void markRefreshed(String caSn) {
+        this.status = SmartcardStatus.ENABLED;
+        this.caSn = caSn;
         this.updatedAt = Instant.now();
     }
 }
