@@ -1,0 +1,37 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/adm/v1/accounts",
+    "headers": {
+      "nv-source-id": {
+        "equalTo": "1000"
+      },
+      "nv-broadcast-mode": {
+        "equalTo": "W"
+      },
+      "Content-Type": {
+        "contains": "application/json"
+      }
+    },
+    "bodyPatterns": [
+      {
+        "matchesJsonPath": "$._id"
+      },
+      {
+        "matchesJsonPath": "$[?(@.status == 'ACTIVE')]"
+      },
+      {
+        "matchesJsonPath": "$[?(@.suspensionMode == 'MOP')]"
+      }
+    ]
+  },
+  "response": {
+    "status": 201,
+    "jsonBody": {
+      "result": "ADM account created"
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

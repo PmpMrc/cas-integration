@@ -1,0 +1,40 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/adm/v1/devices",
+    "headers": {
+      "nv-source-id": {
+        "equalTo": "1000"
+      },
+      "nv-broadcast-mode": {
+        "equalTo": "N"
+      },
+      "Content-Type": {
+        "contains": "application/json"
+      }
+    },
+    "bodyPatterns": [
+      {
+        "matchesJsonPath": "$._id"
+      },
+      {
+        "matchesJsonPath": "$[?(@.status == 'ENABLED')]"
+      },
+      {
+        "matchesJsonPath": "$.smartCardId"
+      },
+      {
+        "matchesJsonPath": "$.accountUid"
+      }
+    ]
+  },
+  "response": {
+    "status": 201,
+    "jsonBody": {
+      "result": "ADM device created"
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

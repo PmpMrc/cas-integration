@@ -1,0 +1,22 @@
+{
+  "request": {
+    "method": "DELETE",
+    "urlPathPattern": "/v1/devices/.*",
+    "queryParameters": {
+      "cancelICC": {
+        "equalTo": "true"
+      }
+    },
+    "headers": {
+      "nv-source-id": {
+        "equalTo": "1000"
+      },
+      "nv-broadcast-mode": {
+        "equalTo": "1"
+      }
+    }
+  },
+  "response": {
+    "status": 204
+  }
+}

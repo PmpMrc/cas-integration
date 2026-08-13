@@ -11,5 +11,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  wiremock:
+    image: wiremock/wiremock:3.9.2
+    container_name: tivusat-nagra-wiremock
+    ports:
+      - "9090:8080"
+    volumes:
+      - ./wiremock/mappings:/home/wiremock/mappings
+    command:
+      - "--verbose"
+
 volumes:
   postgres_data:

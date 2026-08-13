@@ -1,0 +1,31 @@
+{
+  "request": {
+    "method": "PUT",
+    "urlPathPattern": "/v1/devices/.*",
+    "headers": {
+      "nv-source-id": {
+        "equalTo": "1000"
+      },
+      "nv-broadcast-mode": {
+        "equalTo": "1"
+      },
+      "Content-Type": {
+        "contains": "application/json"
+      }
+    },
+    "bodyPatterns": [
+      {
+        "matchesJsonPath": "$.status"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "result": "ADM device updated"
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

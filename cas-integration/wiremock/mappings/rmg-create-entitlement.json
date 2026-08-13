@@ -1,0 +1,40 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/rmg/v1/entitlements",
+    "headers": {
+      "nv-source-id": {
+        "equalTo": "1000"
+      },
+      "nv-broadcast-mode": {
+        "equalTo": "W"
+      },
+      "Content-Type": {
+        "contains": "application/json"
+      }
+    },
+    "bodyPatterns": [
+      {
+        "matchesJsonPath": "$._id"
+      },
+      {
+        "matchesJsonPath": "$.accountId"
+      },
+      {
+        "matchesJsonPath": "$.productId"
+      },
+      {
+        "matchesJsonPath": "$[?(@.status == 'SUBSCRIBED')]"
+      }
+    ]
+  },
+  "response": {
+    "status": 201,
+    "jsonBody": {
+      "result": "RMG entitlement created"
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}
