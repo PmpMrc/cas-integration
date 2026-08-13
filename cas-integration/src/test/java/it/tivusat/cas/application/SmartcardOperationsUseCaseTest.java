@@ -7,6 +7,7 @@ import it.tivusat.cas.domain.SmartcardType;
 import it.tivusat.cas.infrastructure.nagra.NagraSmartcardGateway;
 import it.tivusat.cas.infrastructure.persistence.SmartcardEntity;
 import it.tivusat.cas.infrastructure.persistence.SmartcardRepository;
+import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -155,8 +156,8 @@ class SmartcardOperationsUseCaseTest {
     void shouldThrowExceptionWhenSmartcardDoesNotExist() {
         when(repository.findById(SN)).thenReturn(Optional.empty());
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        SmartcardNotFoundException exception = assertThrows(
+                SmartcardNotFoundException.class,
                 () -> useCase.getStatus(SN)
         );
 

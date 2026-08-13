@@ -8,6 +8,7 @@ import it.tivusat.cas.infrastructure.persistence.SmartcardEntity;
 import it.tivusat.cas.infrastructure.persistence.SmartcardRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
 
 @Service
 public class SmartcardOperationsUseCase {
@@ -102,7 +103,7 @@ public class SmartcardOperationsUseCase {
 
     private SmartcardEntity findSmartcard(String sn) {
         return repository.findById(sn)
-                .orElseThrow(() -> new IllegalArgumentException("Smartcard not found: " + sn));
+                .orElseThrow(() -> new SmartcardNotFoundException(sn));
     }
 
     private void validateCaSnIfRequired(SmartcardEntity smartcard, String caSn) {
