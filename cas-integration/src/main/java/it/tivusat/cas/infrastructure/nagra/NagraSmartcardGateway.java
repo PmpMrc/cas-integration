@@ -3,6 +3,7 @@ package it.tivusat.cas.infrastructure.nagra;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardType;
 import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountRequest;
+import it.tivusat.cas.infrastructure.nagra.dto.AdmDeviceRequest;
 import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,5 +61,64 @@ public class NagraSmartcardGateway {
                         expiryDate
                 )
         );
+    }
+
+    public void activateSmartcard(
+            String sn,
+            String ua,
+            SmartcardSource source,
+            String caSn
+    ) {
+        if (!properties.enabled()) {
+            log.info("NAGRA integration disabled. Skipping activate call for smartcard SN {}", sn);
+            return;
+        }
+
+        admClient.createDevice(
+                source,
+                AdmDeviceRequest.activate(sn, ua, caSn)
+        );
+    }
+
+    public void refreshSmartcard(
+            String sn,
+            String ua,
+            SmartcardSource source,
+            String caSn
+    ) {
+        if (!properties.enabled()) {
+            log.info("NAGRA integration disabled. Skipping refresh call for smartcard SN {}", sn);
+            return;
+        }
+
+        admClient.updateDeviceForRefresh(
+                source,
+                sn,
+                AdmDeviceRequest.refresh(sn, ua, caSn)
+        );
+    }
+
+    public void suspendSmartcard(
+            String sn,
+            SmartcardSource source
+    ) {
+        if (!properties.enabled()) {
+            log.info("NAGRA integration disabled. Skipping suspend call for smartcard SN {}", sn);
+            return;
+        }
+
+        admClient.suspendDevice(source, sn);
+    }
+
+    public void deleteSmartcard(
+            String sn,
+            SmartcardSource source
+    ) {
+        if (!properties.enabled()) {
+            log.info("NAGRA integration disabled. Skipping delete call for smartcard SN {}", sn);
+            return;
+        }
+
+        admClient.deleteDevice(source, sn);
     }
 }
