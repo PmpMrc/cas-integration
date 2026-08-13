@@ -5,6 +5,7 @@ import it.tivusat.cas.domain.SmartcardValidator;
 import it.tivusat.cas.infrastructure.nagra.NagraSmartcardGateway;
 import it.tivusat.cas.infrastructure.persistence.SmartcardEntity;
 import it.tivusat.cas.infrastructure.persistence.SmartcardRepository;
+import it.tivusat.cas.domain.UaRangeClassifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,22 +18,25 @@ public class PreloadSmartcardUseCase {
     private final SmartcardRepository repository;
     private final SmartcardValidator validator;
     private final NagraSmartcardGateway nagraSmartcardGateway;
+    private final UaRangeClassifier uaRangeClassifier;
 
     public PreloadSmartcardUseCase(
             SmartcardRepository repository,
             SmartcardValidator validator,
-            NagraSmartcardGateway nagraSmartcardGateway
+            NagraSmartcardGateway nagraSmartcardGateway,
+            UaRangeClassifier uaRangeClassifier
     ) {
         this.repository = repository;
         this.validator = validator;
         this.nagraSmartcardGateway = nagraSmartcardGateway;
+        this.uaRangeClassifier = uaRangeClassifier;
     }
-
     @Transactional
     public void preload(PreloadSmartcardRequest request) {
         validator.validateSerialNumber(request.sn());
 
         String ua = validator.extractUa(request.sn());
+        uaRangeClassifier.validateRestSupported(ua);
 
         SmartcardEntity smartcard = repository.findById(request.sn())
                 .orElseGet(() -> new SmartcardEntity(

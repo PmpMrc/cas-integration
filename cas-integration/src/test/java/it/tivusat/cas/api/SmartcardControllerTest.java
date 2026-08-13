@@ -41,7 +41,7 @@ class SmartcardControllerTest {
 
     @MockitoBean
     private SmartcardOperationsUseCase smartcardOperationsUseCase;
-    
+
     @Test
     void shouldPreloadSmartcard() throws Exception {
         doNothing()

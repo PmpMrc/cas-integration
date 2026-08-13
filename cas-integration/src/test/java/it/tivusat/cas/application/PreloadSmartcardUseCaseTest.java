@@ -1,10 +1,7 @@
 package it.tivusat.cas.application;
 
 import it.tivusat.cas.api.dto.PreloadSmartcardRequest;
-import it.tivusat.cas.domain.SmartcardSource;
-import it.tivusat.cas.domain.SmartcardStatus;
-import it.tivusat.cas.domain.SmartcardType;
-import it.tivusat.cas.domain.SmartcardValidator;
+import it.tivusat.cas.domain.*;
 import it.tivusat.cas.infrastructure.nagra.NagraSmartcardGateway;
 import it.tivusat.cas.infrastructure.persistence.SmartcardEntity;
 import it.tivusat.cas.infrastructure.persistence.SmartcardRepository;
@@ -42,7 +39,8 @@ class PreloadSmartcardUseCaseTest {
         useCase = new PreloadSmartcardUseCase(
                 repository,
                 new SmartcardValidator(),
-                nagraSmartcardGateway
+                nagraSmartcardGateway,
+                new UaRangeClassifier()
         );
     }
 
@@ -173,5 +171,26 @@ class PreloadSmartcardUseCaseTest {
                 any(Instant.class),
                 any(Instant.class)
         );
+    }
+
+    @Test
+    void shouldRejectTigerSmartcardRange() {
+        PreloadSmartcardRequest request = new PreloadSmartcardRequest(
+                "109202636869",
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL,
+                PRODUCT_ID
+        );
+
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
+                () -> useCase.preload(request)
+        );
+
+        assertTrue(exception.getMessage().contains("legacy SOA/SMS"));
+
+        verify(repository, never()).findById(anyString());
+        verify(repository, never()).save(any());
+        verifyNoInteractions(nagraSmartcardGateway);
     }
 }

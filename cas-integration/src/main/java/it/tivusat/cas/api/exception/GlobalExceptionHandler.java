@@ -3,6 +3,7 @@ package it.tivusat.cas.api.exception;
 import it.tivusat.cas.api.dto.ErrorResponse;
 import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
 import it.tivusat.cas.infrastructure.nagra.NagraException;
+import it.tivusat.cas.domain.exception.UnsupportedSmartcardRangeException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
@@ -142,6 +143,19 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(UnsupportedSmartcardRangeException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedSmartcardRange(
+            UnsupportedSmartcardRangeException ex,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "UNSUPPORTED_SMARTCARD_RANGE",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+    }
+
     private ResponseEntity<ErrorResponse> buildResponse(
             HttpStatus status,
             String error,
@@ -157,4 +171,6 @@ public class GlobalExceptionHandler {
                         path
                 ));
     }
+
+
 }
