@@ -4,7 +4,7 @@
     "url": "/rmg/v1/entitlements",
     "headers": {
       "nv-source-id": {
-        "equalTo": "1000"
+        "matches": "1000|2000"
       },
       "nv-broadcast-mode": {
         "equalTo": "W"

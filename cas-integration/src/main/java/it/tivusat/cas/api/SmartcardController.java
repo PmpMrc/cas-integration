@@ -6,6 +6,11 @@ import it.tivusat.cas.api.dto.SmartcardResponse;
 import it.tivusat.cas.application.PreloadSmartcardUseCase;
 import it.tivusat.cas.application.SmartcardOperationsUseCase;
 import it.tivusat.cas.infrastructure.persistence.SmartcardEntity;
+import it.tivusat.cas.api.dto.ImportSmartcardsResponse;
+import it.tivusat.cas.application.SmartcardImportService;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,13 +21,16 @@ public class SmartcardController {
 
     private final PreloadSmartcardUseCase preloadSmartcardUseCase;
     private final SmartcardOperationsUseCase smartcardOperationsUseCase;
+    private final SmartcardImportService smartcardImportService;
 
     public SmartcardController(
             PreloadSmartcardUseCase preloadSmartcardUseCase,
-            SmartcardOperationsUseCase smartcardOperationsUseCase
+            SmartcardOperationsUseCase smartcardOperationsUseCase,
+            SmartcardImportService smartcardImportService
     ) {
         this.preloadSmartcardUseCase = preloadSmartcardUseCase;
         this.smartcardOperationsUseCase = smartcardOperationsUseCase;
+        this.smartcardImportService = smartcardImportService;
     }
 
     @PostMapping("/preload")
@@ -79,5 +87,11 @@ public class SmartcardController {
     public ResponseEntity<SmartcardResponse> syncStatus(@PathVariable String sn) {
         SmartcardEntity smartcard = smartcardOperationsUseCase.syncStatus(sn);
         return ResponseEntity.ok(SmartcardResponse.fromEntity(smartcard));
+    }
+
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ImportSmartcardsResponse> importSmartcards(@RequestPart("file") MultipartFile file) {
+        ImportSmartcardsResponse response = smartcardImportService.importSmartcards(file);
+        return ResponseEntity.accepted().body(response);
     }
 }
