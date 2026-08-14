@@ -20,6 +20,11 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import it.tivusat.cas.infrastructure.nagra.NagraSmartcardStatusSnapshot;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
 
 @ExtendWith(MockitoExtension.class)
 class SmartcardOperationsUseCaseTest {
@@ -324,6 +329,125 @@ class SmartcardOperationsUseCaseTest {
                 SmartcardType.TIVU_HD_PAIRING.getNagraType(),
                 PRODUCT_ID,
                 Instant.now().plusSeconds(60L * 60 * 24 * 365 * 4)
+        );
+
+        return smartcard;
+    }
+
+    @Test
+    void syncStatusShouldUpdateDeviceAndEntitlementFromNagra() {
+        String sn = "109687603246";
+
+        SmartcardEntity smartcard = preloadedSmartcard();
+
+        Instant validityFrom = Instant.parse("2026-08-14T10:00:00Z");
+        Instant expiryDate = Instant.parse("2030-08-14T10:00:00Z");
+
+        NagraDeviceResponse device = new NagraDeviceResponse(
+                "ENABLED",
+                "CA123456",
+                "1096876032",
+                sn
+        );
+
+        NagraEntitlementResponse entitlement = new NagraEntitlementResponse(
+                "TivuHD",
+                sn,
+                "PRODUCT_TEST",
+                "SUBSCRIBED",
+                "ABSOLUTE",
+                "SUBSCRIPTION",
+                validityFrom,
+                expiryDate
+        );
+
+        when(repository.findById(sn)).thenReturn(Optional.of(smartcard));
+        when(nagraSmartcardGateway.fetchSmartcardStatus(sn, SmartcardSource.PHYSICAL))
+                .thenReturn(NagraSmartcardStatusSnapshot.of(device, entitlement));
+        when(repository.save(any(SmartcardEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        SmartcardEntity result = useCase.syncStatus(sn);
+
+        assertThat(result.getStatus()).isEqualTo(SmartcardStatus.ENABLED);
+        assertThat(result.isDeviceCreated()).isTrue();
+        assertThat(result.getCaSn()).isEqualTo("CA123456");
+        assertThat(result.getEntitlementId()).isEqualTo("TivuHD");
+        assertThat(result.getProductId()).isEqualTo("PRODUCT_TEST");
+        assertThat(result.getExpiryDate()).isEqualTo(expiryDate);
+        assertThat(result.getLastSyncAt()).isNotNull();
+
+        verify(repository).save(smartcard);
+    }
+
+    @Test
+    void syncStatusShouldMarkSmartcardAsPreloadedWhenDeviceNotFoundOnAdm() {
+        String sn = "109687603246";
+
+        SmartcardEntity smartcard = preloadedSmartcard();
+        smartcard.markEnabled("CA123456");
+
+        Instant validityFrom = Instant.parse("2026-08-14T10:00:00Z");
+        Instant expiryDate = Instant.parse("2030-08-14T10:00:00Z");
+
+        NagraEntitlementResponse entitlement = new NagraEntitlementResponse(
+                "TivuHD",
+                sn,
+                "PRODUCT_TEST",
+                "SUBSCRIBED",
+                "ABSOLUTE",
+                "SUBSCRIPTION",
+                validityFrom,
+                expiryDate
+        );
+
+        when(repository.findById(sn)).thenReturn(Optional.of(smartcard));
+        when(nagraSmartcardGateway.fetchSmartcardStatus(sn, SmartcardSource.PHYSICAL))
+                .thenReturn(NagraSmartcardStatusSnapshot.deviceNotFound(entitlement));
+        when(repository.save(any(SmartcardEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        SmartcardEntity result = useCase.syncStatus(sn);
+
+        assertThat(result.getStatus()).isEqualTo(SmartcardStatus.PRELOADED);
+        assertThat(result.isDeviceCreated()).isFalse();
+        assertThat(result.getEntitlementId()).isEqualTo("TivuHD");
+        assertThat(result.getProductId()).isEqualTo("PRODUCT_TEST");
+        assertThat(result.getExpiryDate()).isEqualTo(expiryDate);
+        assertThat(result.getLastSyncAt()).isNotNull();
+
+        verify(repository).save(smartcard);
+    }
+
+    @Test
+    void syncStatusShouldNotSaveWhenNagraIntegrationIsDisabled() {
+        String sn = "109687603246";
+
+        SmartcardEntity smartcard = preloadedSmartcard();
+
+        when(repository.findById(sn)).thenReturn(Optional.of(smartcard));
+        when(nagraSmartcardGateway.fetchSmartcardStatus(sn, SmartcardSource.PHYSICAL))
+                .thenReturn(NagraSmartcardStatusSnapshot.integrationDisabled());
+
+        SmartcardEntity result = useCase.syncStatus(sn);
+
+        assertThat(result).isSameAs(smartcard);
+
+        verify(repository, never()).save(any(SmartcardEntity.class));
+    }
+
+    private SmartcardEntity preloadedSmartcard() {
+        SmartcardEntity smartcard = new SmartcardEntity(
+                "109687603246",
+                "1096876032",
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL
+        );
+
+        smartcard.markPreloaded(
+                "TivuHD",
+                "PRODUCT_OLD",
+                Instant.parse("2030-01-01T00:00:00Z")
         );
 
         return smartcard;

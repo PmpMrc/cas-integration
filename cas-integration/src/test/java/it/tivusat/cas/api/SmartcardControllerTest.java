@@ -13,7 +13,14 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import it.tivusat.cas.api.dto.ImportSmartcardRowResult;
+import it.tivusat.cas.api.dto.ImportSmartcardsResponse;
+import it.tivusat.cas.application.SmartcardImportService;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.time.Instant;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -26,6 +33,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+
+
+
 
 @WebMvcTest(SmartcardController.class)
 class SmartcardControllerTest {
@@ -41,6 +52,9 @@ class SmartcardControllerTest {
 
     @MockitoBean
     private SmartcardOperationsUseCase smartcardOperationsUseCase;
+
+    @MockitoBean
+    private SmartcardImportService smartcardImportService;
 
     @Test
     void shouldPreloadSmartcard() throws Exception {
@@ -254,5 +268,78 @@ class SmartcardControllerTest {
         );
 
         return smartcard;
+    }
+
+    @Test
+    void importSmartcardsShouldReturnAcceptedWithReport() throws Exception {
+        ImportSmartcardsResponse response = new ImportSmartcardsResponse(
+                2,
+                1,
+                1,
+                List.of(
+                        ImportSmartcardRowResult.success(2, "109687603246"),
+                        ImportSmartcardRowResult.error(
+                                3,
+                                "109202636869",
+                                "UNSUPPORTED_SMARTCARD_RANGE",
+                                "Smartcard UA 1092026368 must be handled by legacy SOA/SMS"
+                        )
+                )
+        );
+
+        when(smartcardImportService.importSmartcards(any(MultipartFile.class)))
+                .thenReturn(response);
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "smartcards-import.csv",
+                "text/csv",
+                """
+                    sn,smartcardType,source,productId
+                    109687603246,TIVU_HD,PHYSICAL,PRODUCT_TEST
+                    """.getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(
+                        multipart("/api/v1/smartcards/import")
+                                .file(file)
+                )
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.totalRows").value(2))
+                .andExpect(jsonPath("$.successRows").value(1))
+                .andExpect(jsonPath("$.failedRows").value(1))
+                .andExpect(jsonPath("$.results[0].success").value(true))
+                .andExpect(jsonPath("$.results[1].error").value("UNSUPPORTED_SMARTCARD_RANGE"));
+    }
+
+    @Test
+    void syncStatusShouldReturnUpdatedSmartcard() throws Exception {
+        String sn = "109687603246";
+
+        SmartcardEntity smartcard = new SmartcardEntity(
+                sn,
+                "1096876032",
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL
+        );
+
+        smartcard.markPreloaded(
+                "TivuHD",
+                "PRODUCT_TEST",
+                Instant.parse("2030-01-01T00:00:00Z")
+        );
+
+        smartcard.markEnabled("CA123456");
+
+        when(smartcardOperationsUseCase.syncStatus(sn))
+                .thenReturn(smartcard);
+
+        mockMvc.perform(post("/api/v1/smartcards/{sn}/sync-status", sn))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sn").value(sn))
+                .andExpect(jsonPath("$.ua").value("1096876032"))
+                .andExpect(jsonPath("$.status").value("ENABLED"))
+                .andExpect(jsonPath("$.deviceCreated").value(true))
+                .andExpect(jsonPath("$.caSn").value("CA123456"));
     }
 }
