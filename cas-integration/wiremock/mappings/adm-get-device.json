@@ -1,0 +1,26 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/adm/v1/devices/.*",
+    "headers": {
+      "nv-source-id": {
+        "equalTo": "1000"
+      },
+      "nv-broadcast-mode": {
+        "equalTo": "W"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "status": "ENABLED",
+      "caSN": null,
+      "smartCardId": "1096876032",
+      "accountUid": "109687603246"
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

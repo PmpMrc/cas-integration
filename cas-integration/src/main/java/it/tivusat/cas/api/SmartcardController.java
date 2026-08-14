@@ -74,4 +74,10 @@ public class SmartcardController {
         SmartcardEntity smartcard = smartcardOperationsUseCase.getStatus(sn);
         return ResponseEntity.ok(SmartcardResponse.fromEntity(smartcard));
     }
+
+    @PostMapping("/{sn}/sync-status")
+    public ResponseEntity<SmartcardResponse> syncStatus(@PathVariable String sn) {
+        SmartcardEntity smartcard = smartcardOperationsUseCase.syncStatus(sn);
+        return ResponseEntity.ok(SmartcardResponse.fromEntity(smartcard));
+    }
 }

@@ -1,0 +1,35 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/rmg/v1/operator/entitlements",
+    "queryParameters": {
+      "filter": {
+        "contains": "109687603246"
+      }
+    },
+    "headers": {
+      "nv-source-id": {
+        "equalTo": "1000"
+      },
+      "nv-broadcast-mode": {
+        "equalTo": "W"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "_id": "TivuHD",
+      "accountId": "109687603246",
+      "productId": "PRODUCT_TEST",
+      "status": "SUBSCRIBED",
+      "validityType": "ABSOLUTE",
+      "productType": "SUBSCRIPTION",
+      "validityFrom": "2026-08-13T12:39:38Z",
+      "expiryDate": "2030-08-12T12:39:38Z"
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

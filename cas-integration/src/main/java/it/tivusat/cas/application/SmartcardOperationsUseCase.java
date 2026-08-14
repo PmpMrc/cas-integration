@@ -6,6 +6,9 @@ import it.tivusat.cas.domain.SmartcardType;
 import it.tivusat.cas.infrastructure.nagra.NagraSmartcardGateway;
 import it.tivusat.cas.infrastructure.persistence.SmartcardEntity;
 import it.tivusat.cas.infrastructure.persistence.SmartcardRepository;
+import it.tivusat.cas.infrastructure.nagra.NagraSmartcardStatusSnapshot;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
@@ -111,5 +114,43 @@ public class SmartcardOperationsUseCase {
                 && (caSn == null || caSn.isBlank())) {
             throw new IllegalArgumentException("caSn is mandatory for TIVU_HD_PAIRING smartcards");
         }
+    }
+
+    @Transactional
+    public SmartcardEntity syncStatus(String sn) {
+        SmartcardEntity smartcard = findSmartcard(sn);
+
+        NagraSmartcardStatusSnapshot snapshot =
+                nagraSmartcardGateway.fetchSmartcardStatus(
+                        smartcard.getSn(),
+                        smartcard.getSource()
+                );
+
+        if (snapshot.skipped()) {
+            return smartcard;
+        }
+
+        if (snapshot.deviceNotFound()) {
+            smartcard.markNotActivatedAfterSync();
+        } else {
+            NagraDeviceResponse device = snapshot.device();
+
+            smartcard.syncDeviceStatus(
+                    device.status(),
+                    device.caSN()
+            );
+        }
+
+        NagraEntitlementResponse entitlement = snapshot.entitlement();
+
+        if (entitlement != null) {
+            smartcard.syncEntitlement(
+                    entitlement.id(),
+                    entitlement.productId(),
+                    entitlement.expiryDate()
+            );
+        }
+
+        return repository.save(smartcard);
     }
 }

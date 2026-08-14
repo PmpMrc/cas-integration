@@ -24,4 +24,15 @@ public class NagraException extends RuntimeException {
     public String getResponseBody() {
         return responseBody;
     }
+
+    public boolean isDeviceNotFound() {
+        if (httpStatus == null || httpStatus != 404 || responseBody == null) {
+            return false;
+        }
+
+        return responseBody.contains("\"errorCode\":4403")
+                || responseBody.contains("\"errorCode\":\"4403\"")
+                || responseBody.contains("Device not found");
+    }
+
 }

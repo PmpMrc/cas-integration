@@ -2,9 +2,7 @@ package it.tivusat.cas.infrastructure.nagra;
 
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardType;
-import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountRequest;
-import it.tivusat.cas.infrastructure.nagra.dto.AdmDeviceRequest;
-import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
+import it.tivusat.cas.infrastructure.nagra.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -120,5 +118,36 @@ public class NagraSmartcardGateway {
         }
 
         admClient.deleteDevice(source, sn);
+    }
+
+    public NagraSmartcardStatusSnapshot fetchSmartcardStatus(
+            String sn,
+            SmartcardSource source
+    ) {
+        if (!properties.enabled()) {
+            log.info("NAGRA integration disabled. Skipping sync status calls for smartcard SN {}", sn);
+            return NagraSmartcardStatusSnapshot.integrationDisabled();
+        }
+
+        NagraDeviceResponse device = null;
+        boolean deviceNotFound = false;
+
+        try {
+            device = admClient.getDevice(source, sn);
+        } catch (NagraException ex) {
+            if (ex.isDeviceNotFound()) {
+                deviceNotFound = true;
+            } else {
+                throw ex;
+            }
+        }
+
+        NagraEntitlementResponse entitlement = rmgClient.getEntitlementsByAccountId(source, sn);
+
+        if (deviceNotFound) {
+            return NagraSmartcardStatusSnapshot.deviceNotFound(entitlement);
+        }
+
+        return NagraSmartcardStatusSnapshot.of(device, entitlement);
     }
 }

@@ -108,6 +108,8 @@ public class SmartcardEntity {
         return updatedAt;
     }
 
+    public Instant getLastSyncAt() { return lastSyncAt; }
+
     public void markPreloaded(String entitlementId, String productId, Instant expiryDate) {
         this.accountCreated = true;
         this.entitlementId = entitlementId;
@@ -137,6 +139,44 @@ public class SmartcardEntity {
     public void markRefreshed(String caSn) {
         this.status = SmartcardStatus.ENABLED;
         this.caSn = caSn;
+        this.updatedAt = Instant.now();
+    }
+
+    public void markNotActivatedAfterSync() {
+        this.deviceCreated = false;
+
+        if (this.status != SmartcardStatus.DELETED) {
+            this.status = SmartcardStatus.PRELOADED;
+        }
+
+        this.lastSyncAt = Instant.now();
+        this.updatedAt = Instant.now();
+    }
+
+    public void syncDeviceStatus(String nagraStatus, String caSn) {
+        if ("ENABLED".equalsIgnoreCase(nagraStatus)) {
+            this.status = SmartcardStatus.ENABLED;
+            this.deviceCreated = true;
+        } else if ("DISABLED".equalsIgnoreCase(nagraStatus)) {
+            this.status = SmartcardStatus.DISABLED;
+            this.deviceCreated = true;
+        } else {
+            throw new IllegalArgumentException("Unsupported NAGRA device status: " + nagraStatus);
+        }
+
+        this.caSn = caSn;
+        this.lastSyncAt = Instant.now();
+        this.updatedAt = Instant.now();
+    }
+
+    public void syncEntitlement(
+            String entitlementId,
+            String productId,
+            Instant expiryDate
+    ) {
+        this.entitlementId = entitlementId;
+        this.productId = productId;
+        this.expiryDate = expiryDate;
         this.updatedAt = Instant.now();
     }
 }

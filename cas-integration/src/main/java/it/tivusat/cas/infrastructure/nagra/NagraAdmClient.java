@@ -4,6 +4,7 @@ import it.tivusat.cas.domain.NagraOperation;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountRequest;
 import it.tivusat.cas.infrastructure.nagra.dto.AdmDeviceRequest;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 
@@ -21,10 +22,7 @@ public class NagraAdmClient {
         this.executor = executor;
     }
 
-    public void createAccount(
-            SmartcardSource source,
-            AdmAccountRequest request
-    ) {
+    public void createAccount(SmartcardSource source, AdmAccountRequest request) {
         executor.execute(
                 NagraOperation.ADM_CREATE_ACCOUNT,
                 request.id(),
@@ -36,10 +34,7 @@ public class NagraAdmClient {
         );
     }
 
-    public void createDevice(
-            SmartcardSource source,
-            AdmDeviceRequest request
-    ) {
+    public void createDevice(SmartcardSource source, AdmDeviceRequest request) {
         executor.execute(
                 NagraOperation.ADM_CREATE_DEVICE,
                 request.id(),
@@ -68,10 +63,7 @@ public class NagraAdmClient {
         );
     }
 
-    public void suspendDevice(
-            SmartcardSource source,
-            String sn
-    ) {
+    public void suspendDevice(SmartcardSource source, String sn) {
         executor.execute(
                 NagraOperation.ADM_SUSPEND_DEVICE,
                 sn,
@@ -84,10 +76,7 @@ public class NagraAdmClient {
         );
     }
 
-    public void deleteDevice(
-            SmartcardSource source,
-            String sn
-    ) {
+    public void deleteDevice(SmartcardSource source, String sn) {
         executor.execute(
                 NagraOperation.ADM_DELETE_DEVICE,
                 sn,
@@ -96,6 +85,20 @@ public class NagraAdmClient {
                 source,
                 "1",
                 null,
+                sn
+        );
+    }
+
+    public NagraDeviceResponse getDevice(SmartcardSource source, String sn) {
+        return executor.execute(
+                NagraOperation.ADM_GET_DEVICE,
+                sn,
+                HttpMethod.GET,
+                properties.paths().getDevice(),
+                source,
+                "W",
+                null,
+                NagraDeviceResponse.class,
                 sn
         );
     }

@@ -45,18 +45,47 @@ public class NagraRestExecutor {
             Object body,
             Object... uriVariables
     ) {
+        execute(
+                operation,
+                smartcardSn,
+                method,
+                uriTemplate,
+                source,
+                broadcastMode,
+                body,
+                String.class,
+                uriVariables
+        );
+    }
+
+    public <T> T execute(
+            NagraOperation operation,
+            String smartcardSn,
+            HttpMethod method,
+            String uriTemplate,
+            SmartcardSource source,
+            String broadcastMode,
+            Object body,
+            Class<T> responseType,
+            Object... uriVariables
+    ) {
         String endpoint = buildEndpoint(uriTemplate, uriVariables);
-        String requestPayload = toJson(body);
+        String requestPayload = toPayload(body);
         long start = System.currentTimeMillis();
 
         try {
-            ResponseEntity<String> response = restClient
+            RestClient.RequestBodySpec requestSpec = restClient
                     .method(method)
                     .uri(uriTemplate, uriVariables)
-                    .headers(headers -> applyHeaders(headers, source, broadcastMode, body))
-                    .body(body != null ? body : "")
+                    .headers(headers -> applyHeaders(headers, source, broadcastMode, body));
+
+            RestClient.RequestHeadersSpec<?> headersSpec = body != null
+                    ? requestSpec.body(body)
+                    : requestSpec;
+
+            ResponseEntity<T> response = headersSpec
                     .retrieve()
-                    .toEntity(String.class);
+                    .toEntity(responseType);
 
             long durationMs = System.currentTimeMillis() - start;
 
@@ -66,10 +95,12 @@ public class NagraRestExecutor {
                     method.name(),
                     endpoint,
                     requestPayload,
-                    response.getBody(),
+                    toPayload(response.getBody()),
                     response.getStatusCode().value(),
                     durationMs
             );
+
+            return response.getBody();
 
         } catch (RestClientResponseException ex) {
             long durationMs = System.currentTimeMillis() - start;
@@ -146,15 +177,19 @@ public class NagraRestExecutor {
                 .toUriString();
     }
 
-    private String toJson(Object body) {
-        if (body == null) {
+    private String toPayload(Object value) {
+        if (value == null) {
             return null;
         }
 
+        if (value instanceof String stringValue) {
+            return stringValue;
+        }
+
         try {
-            return objectMapper.writeValueAsString(body);
+            return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException ex) {
-            return "<unable to serialize request body>";
+            return "<unable to serialize payload>";
         }
     }
 }
