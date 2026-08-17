@@ -9,7 +9,7 @@
     },
     "headers": {
       "nv-source-id": {
-        "equalTo": "1000"
+        "matches": "1000|2000"
       },
       "nv-broadcast-mode": {
         "equalTo": "1"
@@ -17,6 +17,9 @@
     }
   },
   "response": {
-    "status": 204
+    "status": 204,
+    "headers": {
+      "Content-Length": "0"
+    }
   }
 }

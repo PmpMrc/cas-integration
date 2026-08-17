@@ -45,6 +45,21 @@ public class NagraRestExecutor {
             Object body,
             Object... uriVariables
     ) {
+        if (HttpMethod.DELETE.equals(method)) {
+            execute(
+                    operation,
+                    smartcardSn,
+                    method,
+                    uriTemplate,
+                    source,
+                    broadcastMode,
+                    body,
+                    Void.class,
+                    uriVariables
+            );
+            return;
+        }
+
         execute(
                 operation,
                 smartcardSn,
@@ -83,9 +98,23 @@ public class NagraRestExecutor {
                     ? requestSpec.body(body)
                     : requestSpec;
 
-            ResponseEntity<T> response = headersSpec
-                    .retrieve()
-                    .toEntity(responseType);
+            ResponseEntity<T> response;
+
+            if (Void.class.equals(responseType)) {
+                ResponseEntity<Void> bodilessResponse = headersSpec
+                        .retrieve()
+                        .toBodilessEntity();
+
+                response = new ResponseEntity<>(
+                        null,
+                        bodilessResponse.getHeaders(),
+                        bodilessResponse.getStatusCode()
+                );
+            } else {
+                response = headersSpec
+                        .retrieve()
+                        .toEntity(responseType);
+            }
 
             long durationMs = System.currentTimeMillis() - start;
 

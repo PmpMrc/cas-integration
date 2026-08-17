@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    jndi-name: jdbc/TivusatCasDS
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+
+nagra:
+  enabled: true
+  base-url: https://endpoint-nagra-da-configurare
+  source-id:
+    physical: "1000"
+    virtual: "2000"
+  paths:
+    create-account: "/adm/v1/accounts"
+    create-entitlement: "/rmg/v1/entitlements"
+    create-device: "/adm/v1/devices"
+    update-device: "/v1/devices/{deviceId}"
+    get-device: "/adm/v1/devices/{deviceId}"
+    get-entitlements: "/rmg/v1/operator/entitlements"

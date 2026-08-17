@@ -1,0 +1,54 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>it.tivusat</groupId>
+        <artifactId>cas-integration-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>cas-integration-ear</artifactId>
+    <packaging>ear</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>it.tivusat</groupId>
+            <artifactId>cas-integration-web</artifactId>
+            <version>${project.version}</version>
+            <type>war</type>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>cas-integration</finalName>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-ear-plugin</artifactId>
+                <version>3.4.0</version>
+
+                <configuration>
+                    <!-- Per WebLogic 15.x / Jakarta EE 9.1.
+                         Se fosse WebLogic 14.x andrebbe rivisto. -->
+                    <version>9</version>
+
+                    <defaultLibBundleDir>lib</defaultLibBundleDir>
+
+                    <modules>
+                        <webModule>
+                            <groupId>it.tivusat</groupId>
+                            <artifactId>cas-integration-web</artifactId>
+                            <bundleFileName>cas-integration-web.war</bundleFileName>
+                            <contextRoot>/cas-integration</contextRoot>
+                        </webModule>
+                    </modules>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

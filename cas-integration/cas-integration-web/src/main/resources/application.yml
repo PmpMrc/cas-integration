@@ -1,12 +1,6 @@
 spring:
   application:
-    name: tivusat-cas-integration
-
-  profiles:
-    active: local
-
-server:
-  port: 8080
+    name: cas-integration
 
 management:
   endpoints:
