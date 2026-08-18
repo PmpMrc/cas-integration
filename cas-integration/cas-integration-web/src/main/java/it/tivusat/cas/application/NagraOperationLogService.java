@@ -1,22 +1,15 @@
 package it.tivusat.cas.application;
 
 import it.tivusat.cas.domain.NagraOperation;
-import it.tivusat.cas.infrastructure.persistence.OperationLogEntity;
-import it.tivusat.cas.infrastructure.persistence.OperationLogRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class NagraOperationLogService {
 
-    private final OperationLogRepository repository;
+    private static final Logger log = LoggerFactory.getLogger(NagraOperationLogService.class);
 
-    public NagraOperationLogService(OperationLogRepository repository) {
-        this.repository = repository;
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logSuccess(
             String smartcardSn,
             NagraOperation operation,
@@ -25,21 +18,21 @@ public class NagraOperationLogService {
             String requestPayload,
             String responsePayload,
             Integer httpStatus,
-            Long durationMs
+            long durationMs
     ) {
-        repository.save(OperationLogEntity.success(
+        log.info(
+                "NAGRA SUCCESS smartcardSn={} operation={} method={} endpoint={} httpStatus={} durationMs={} requestPayload={} responsePayload={}",
                 smartcardSn,
                 operation,
                 httpMethod,
                 endpoint,
-                requestPayload,
-                responsePayload,
                 httpStatus,
-                durationMs
-        ));
+                durationMs,
+                requestPayload,
+                responsePayload
+        );
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logError(
             String smartcardSn,
             NagraOperation operation,
@@ -50,19 +43,20 @@ public class NagraOperationLogService {
             Integer httpStatus,
             String errorCode,
             String errorMessage,
-            Long durationMs
+            long durationMs
     ) {
-        repository.save(OperationLogEntity.error(
+        log.error(
+                "NAGRA ERROR smartcardSn={} operation={} method={} endpoint={} httpStatus={} errorCode={} durationMs={} requestPayload={} responsePayload={} errorMessage={}",
                 smartcardSn,
                 operation,
                 httpMethod,
                 endpoint,
-                requestPayload,
-                responsePayload,
                 httpStatus,
                 errorCode,
-                errorMessage,
-                durationMs
-        ));
+                durationMs,
+                requestPayload,
+                responsePayload,
+                errorMessage
+        );
     }
 }

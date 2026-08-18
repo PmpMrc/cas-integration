@@ -5,31 +5,33 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.tivusat.cas.application.NagraOperationLogService;
 import it.tivusat.cas.domain.NagraOperation;
 import it.tivusat.cas.domain.SmartcardSource;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 public class NagraRestExecutor {
 
-    private final RestClient restClient;
+    private final RestTemplate restTemplate;
     private final NagraProperties properties;
     private final ObjectMapper objectMapper;
     private final NagraOperationLogService operationLogService;
 
     public NagraRestExecutor(
-            RestClient nagraRestClient,
+            RestTemplate restTemplate,
             NagraProperties properties,
             ObjectMapper objectMapper,
             NagraOperationLogService operationLogService
     ) {
-        this.restClient = nagraRestClient;
+        this.restTemplate = restTemplate;
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.operationLogService = operationLogService;
@@ -85,38 +87,25 @@ public class NagraRestExecutor {
             Object... uriVariables
     ) {
         String endpoint = buildEndpoint(uriTemplate, uriVariables);
-        String requestPayload = toPayload(body);
+        String url = buildUrl(endpoint);
+        String requestPayload = serialize(body);
         long start = System.currentTimeMillis();
 
         try {
-            RestClient.RequestBodySpec requestSpec = restClient
-                    .method(method)
-                    .uri(uriTemplate, uriVariables)
-                    .headers(headers -> applyHeaders(headers, source, broadcastMode, body));
+            HttpHeaders headers = buildHeaders(source, broadcastMode, body);
+            HttpEntity<Object> entity = body == null
+                    ? new HttpEntity<Object>(headers)
+                    : new HttpEntity<Object>(body, headers);
 
-            RestClient.RequestHeadersSpec<?> headersSpec = body != null
-                    ? requestSpec.body(body)
-                    : requestSpec;
-
-            ResponseEntity<T> response;
-
-            if (Void.class.equals(responseType)) {
-                ResponseEntity<Void> bodilessResponse = headersSpec
-                        .retrieve()
-                        .toBodilessEntity();
-
-                response = new ResponseEntity<>(
-                        null,
-                        bodilessResponse.getHeaders(),
-                        bodilessResponse.getStatusCode()
-                );
-            } else {
-                response = headersSpec
-                        .retrieve()
-                        .toEntity(responseType);
-            }
+            ResponseEntity<T> response = restTemplate.exchange(
+                    url,
+                    method,
+                    entity,
+                    responseType
+            );
 
             long durationMs = System.currentTimeMillis() - start;
+            String responsePayload = serialize(response.getBody());
 
             operationLogService.logSuccess(
                     smartcardSn,
@@ -124,16 +113,16 @@ public class NagraRestExecutor {
                     method.name(),
                     endpoint,
                     requestPayload,
-                    toPayload(response.getBody()),
-                    response.getStatusCode().value(),
+                    responsePayload,
+                    response.getStatusCodeValue(),
                     durationMs
             );
 
             return response.getBody();
 
-        } catch (RestClientResponseException ex) {
+        } catch (HttpStatusCodeException exception) {
             long durationMs = System.currentTimeMillis() - start;
-            String responseBody = ex.getResponseBodyAsString();
+            String responseBody = exception.getResponseBodyAsString();
 
             operationLogService.logError(
                     smartcardSn,
@@ -142,19 +131,18 @@ public class NagraRestExecutor {
                     endpoint,
                     requestPayload,
                     responseBody,
-                    ex.getStatusCode().value(),
-                    null,
-                    ex.getMessage(),
+                    exception.getRawStatusCode(),
+                    "HTTP_ERROR",
+                    exception.getMessage(),
                     durationMs
             );
 
             throw new NagraException(
-                    ex.getStatusCode().value(),
+                    exception.getRawStatusCode(),
                     responseBody,
-                    ex
+                    exception
             );
-
-        } catch (RestClientException ex) {
+        } catch (ResourceAccessException exception) {
             long durationMs = System.currentTimeMillis() - start;
 
             operationLogService.logError(
@@ -166,37 +154,69 @@ public class NagraRestExecutor {
                     null,
                     null,
                     "TECHNICAL_ERROR",
-                    ex.getMessage(),
+                    exception.getMessage(),
                     durationMs
             );
 
             throw new NagraException(
                     null,
-                    ex.getMessage(),
-                    ex
+                    exception.getMessage(),
+                    exception
             );
-        }
+        } catch (RestClientException exception) {
+            long durationMs = System.currentTimeMillis() - start;
+
+            operationLogService.logError(
+                    smartcardSn,
+                    operation,
+                    method.name(),
+                    endpoint,
+                    requestPayload,
+                    null,
+                    null,
+                    "TECHNICAL_ERROR",
+                    exception.getMessage(),
+                    durationMs
+            );
+
+            throw new NagraException(
+                    null,
+                    exception.getMessage(),
+                    exception
+            );        }
     }
 
-    private void applyHeaders(
-            HttpHeaders headers,
+    private HttpHeaders buildHeaders(
             SmartcardSource source,
             String broadcastMode,
             Object body
     ) {
+        HttpHeaders headers = new HttpHeaders();
+
+        headers.set("nv-source-id", sourceIdFor(source));
+        headers.set("nv-broadcast-mode", broadcastMode);
+        headers.setAccept(java.util.Collections.singletonList(MediaType.APPLICATION_JSON));
+
         if (body != null) {
             headers.setContentType(MediaType.APPLICATION_JSON);
         }
 
-        headers.set("nv-source-id", resolveSourceId(source));
-        headers.set("nv-broadcast-mode", broadcastMode);
+        return headers;
     }
 
-    private String resolveSourceId(SmartcardSource source) {
-        return switch (source) {
-            case PHYSICAL -> properties.sourceId().physical();
-            case VIRTUAL -> properties.sourceId().virtual();
-        };
+    private String sourceIdFor(SmartcardSource source) {
+        if (source == null) {
+            throw new IllegalArgumentException("Smartcard source is required");
+        }
+
+        switch (source) {
+            case PHYSICAL:
+                return properties.sourceId().physical();
+            case VIRTUAL:
+                return properties.sourceId().virtual();
+            default:
+                throw new IllegalArgumentException("Unsupported smartcard source: " + source);
+        }
     }
 
     private String buildEndpoint(String uriTemplate, Object... uriVariables) {
@@ -206,19 +226,33 @@ public class NagraRestExecutor {
                 .toUriString();
     }
 
-    private String toPayload(Object value) {
-        if (value == null) {
+    private String buildUrl(String endpoint) {
+        String baseUrl = properties.baseUrl();
+
+        if (baseUrl.endsWith("/") && endpoint.startsWith("/")) {
+            return baseUrl.substring(0, baseUrl.length() - 1) + endpoint;
+        }
+
+        if (!baseUrl.endsWith("/") && !endpoint.startsWith("/")) {
+            return baseUrl + "/" + endpoint;
+        }
+
+        return baseUrl + endpoint;
+    }
+
+    private String serialize(Object object) {
+        if (object == null) {
             return null;
         }
 
-        if (value instanceof String stringValue) {
-            return stringValue;
+        if (object instanceof String) {
+            return (String) object;
         }
 
         try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException ex) {
-            return "<unable to serialize payload>";
+            return objectMapper.writeValueAsString(object);
+        } catch (JsonProcessingException exception) {
+            return String.valueOf(object);
         }
     }
 }

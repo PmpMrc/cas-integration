@@ -2,7 +2,11 @@ package it.tivusat.cas.infrastructure.nagra;
 
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardType;
-import it.tivusat.cas.infrastructure.nagra.dto.*;
+import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountRequest;
+import it.tivusat.cas.infrastructure.nagra.dto.AdmDeviceRequest;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
+import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -15,17 +19,17 @@ public class NagraSmartcardGateway {
     private static final Logger log = LoggerFactory.getLogger(NagraSmartcardGateway.class);
 
     private final NagraProperties properties;
-    private final NagraAdmClient admClient;
-    private final NagraRmgClient rmgClient;
+    private final NagraAdmClient nagraAdmClient;
+    private final NagraRmgClient nagraRmgClient;
 
     public NagraSmartcardGateway(
             NagraProperties properties,
-            NagraAdmClient admClient,
-            NagraRmgClient rmgClient
+            NagraAdmClient nagraAdmClient,
+            NagraRmgClient nagraRmgClient
     ) {
         this.properties = properties;
-        this.admClient = admClient;
-        this.rmgClient = rmgClient;
+        this.nagraAdmClient = nagraAdmClient;
+        this.nagraRmgClient = nagraRmgClient;
     }
 
     public void preloadSmartcard(
@@ -37,117 +41,84 @@ public class NagraSmartcardGateway {
             Instant expiryDate
     ) {
         if (!properties.enabled()) {
-            log.info(
-                    "NAGRA integration disabled. Skipping preload calls for smartcard SN {}",
-                    sn
-            );
+            log.warn("NAGRA integration disabled. Skipping preload for smartcard {}", sn);
             return;
         }
 
-        admClient.createAccount(
-                source,
-                AdmAccountRequest.active(sn)
-        );
+        nagraAdmClient.createAccount(source, AdmAccountRequest.active(sn));
 
-        rmgClient.createEntitlement(
-                source,
+        RmgEntitlementRequest entitlementRequest =
                 RmgEntitlementRequest.subscription(
                         smartcardType.getNagraType(),
                         sn,
                         productId,
                         validityFrom,
                         expiryDate
-                )
-        );
+                );
+
+        nagraRmgClient.createEntitlement(source, entitlementRequest);
     }
 
-    public void activateSmartcard(
-            String sn,
-            String ua,
-            SmartcardSource source,
-            String caSn
-    ) {
+    public void activateSmartcard(String sn, String ua, SmartcardSource source, String caSn) {
         if (!properties.enabled()) {
-            log.info("NAGRA integration disabled. Skipping activate call for smartcard SN {}", sn);
+            log.warn("NAGRA integration disabled. Skipping activation for smartcard {}", sn);
             return;
         }
 
-        admClient.createDevice(
+        nagraAdmClient.createDevice(
                 source,
                 AdmDeviceRequest.activate(sn, ua, caSn)
         );
     }
 
-    public void refreshSmartcard(
-            String sn,
-            String ua,
-            SmartcardSource source,
-            String caSn
-    ) {
+    public void refreshSmartcard(String sn, String ua, SmartcardSource source, String caSn) {
         if (!properties.enabled()) {
-            log.info("NAGRA integration disabled. Skipping refresh call for smartcard SN {}", sn);
+            log.warn("NAGRA integration disabled. Skipping refresh for smartcard {}", sn);
             return;
         }
 
-        admClient.updateDeviceForRefresh(
+        nagraAdmClient.updateDeviceForRefresh(
                 source,
                 sn,
                 AdmDeviceRequest.refresh(sn, ua, caSn)
         );
     }
 
-    public void suspendSmartcard(
-            String sn,
-            SmartcardSource source
-    ) {
+    public void suspendSmartcard(String sn, String ua, SmartcardSource source) {
         if (!properties.enabled()) {
-            log.info("NAGRA integration disabled. Skipping suspend call for smartcard SN {}", sn);
+            log.warn("NAGRA integration disabled. Skipping suspend for smartcard {}", sn);
             return;
         }
 
-        admClient.suspendDevice(source, sn);
+        nagraAdmClient.suspendDevice(source, sn);
     }
 
-    public void deleteSmartcard(
-            String sn,
-            SmartcardSource source
-    ) {
+    public void deleteSmartcard(String sn, SmartcardSource source) {
         if (!properties.enabled()) {
-            log.info("NAGRA integration disabled. Skipping delete call for smartcard SN {}", sn);
+            log.warn("NAGRA integration disabled. Skipping delete for smartcard {}", sn);
             return;
         }
 
-        admClient.deleteDevice(source, sn);
+        nagraAdmClient.deleteDevice(source, sn);
     }
 
-    public NagraSmartcardStatusSnapshot fetchSmartcardStatus(
-            String sn,
-            SmartcardSource source
-    ) {
+    public NagraSmartcardStatusSnapshot fetchSmartcardStatus(String sn, SmartcardSource source) {
         if (!properties.enabled()) {
-            log.info("NAGRA integration disabled. Skipping sync status calls for smartcard SN {}", sn);
+            log.warn("NAGRA integration disabled. Skipping status fetch for smartcard {}", sn);
             return NagraSmartcardStatusSnapshot.integrationDisabled();
         }
 
-        NagraDeviceResponse device = null;
-        boolean deviceNotFound = false;
+        NagraEntitlementResponse entitlement =
+                nagraRmgClient.getEntitlementsByAccountId(source, sn);
 
         try {
-            device = admClient.getDevice(source, sn);
-        } catch (NagraException ex) {
-            if (ex.isDeviceNotFound()) {
-                deviceNotFound = true;
-            } else {
-                throw ex;
+            NagraDeviceResponse device = nagraAdmClient.getDevice(source, sn);
+            return NagraSmartcardStatusSnapshot.of(device, entitlement);
+        } catch (NagraException exception) {
+            if (exception.isDeviceNotFound()) {
+                return NagraSmartcardStatusSnapshot.deviceNotFound(entitlement);
             }
+            throw exception;
         }
-
-        NagraEntitlementResponse entitlement = rmgClient.getEntitlementsByAccountId(source, sn);
-
-        if (deviceNotFound) {
-            return NagraSmartcardStatusSnapshot.deviceNotFound(entitlement);
-        }
-
-        return NagraSmartcardStatusSnapshot.of(device, entitlement);
     }
 }

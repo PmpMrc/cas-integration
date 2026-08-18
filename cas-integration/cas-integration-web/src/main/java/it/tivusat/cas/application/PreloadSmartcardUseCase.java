@@ -1,13 +1,12 @@
 package it.tivusat.cas.application;
 
 import it.tivusat.cas.api.dto.PreloadSmartcardRequest;
+import it.tivusat.cas.api.dto.SmartcardResponse;
+import it.tivusat.cas.domain.SmartcardStatus;
 import it.tivusat.cas.domain.SmartcardValidator;
-import it.tivusat.cas.infrastructure.nagra.NagraSmartcardGateway;
-import it.tivusat.cas.infrastructure.persistence.SmartcardEntity;
-import it.tivusat.cas.infrastructure.persistence.SmartcardRepository;
 import it.tivusat.cas.domain.UaRangeClassifier;
+import it.tivusat.cas.infrastructure.nagra.NagraSmartcardGateway;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -15,39 +14,28 @@ import java.time.temporal.ChronoUnit;
 @Service
 public class PreloadSmartcardUseCase {
 
-    private final SmartcardRepository repository;
-    private final SmartcardValidator validator;
+    private final SmartcardValidator smartcardValidator;
     private final NagraSmartcardGateway nagraSmartcardGateway;
     private final UaRangeClassifier uaRangeClassifier;
 
     public PreloadSmartcardUseCase(
-            SmartcardRepository repository,
-            SmartcardValidator validator,
+            SmartcardValidator smartcardValidator,
             NagraSmartcardGateway nagraSmartcardGateway,
             UaRangeClassifier uaRangeClassifier
     ) {
-        this.repository = repository;
-        this.validator = validator;
+        this.smartcardValidator = smartcardValidator;
         this.nagraSmartcardGateway = nagraSmartcardGateway;
         this.uaRangeClassifier = uaRangeClassifier;
     }
-    @Transactional
-    public void preload(PreloadSmartcardRequest request) {
-        validator.validateSerialNumber(request.sn());
 
-        String ua = validator.extractUa(request.sn());
+    public SmartcardResponse preload(PreloadSmartcardRequest request) {
+        smartcardValidator.validate(request.sn());
+
+        String ua = smartcardValidator.extractUa(request.sn());
         uaRangeClassifier.validateRestSupported(ua);
 
-        SmartcardEntity smartcard = repository.findById(request.sn())
-                .orElseGet(() -> new SmartcardEntity(
-                        request.sn(),
-                        ua,
-                        request.smartcardType(),
-                        request.source()
-                ));
-
         Instant validityFrom = Instant.now();
-        Instant expiryDate = validityFrom.plus(365L * 4, ChronoUnit.DAYS);
+        Instant expiryDate = validityFrom.plus(365 * 4L, ChronoUnit.DAYS);
 
         nagraSmartcardGateway.preloadSmartcard(
                 request.sn(),
@@ -58,12 +46,20 @@ public class PreloadSmartcardUseCase {
                 expiryDate
         );
 
-        smartcard.markPreloaded(
+        return new SmartcardResponse(
+                request.sn(),
+                ua,
+                request.smartcardType(),
+                request.source(),
+                SmartcardStatus.PRELOADED,
+                true,
+                false,
                 request.smartcardType().getNagraType(),
                 request.productId(),
-                expiryDate
+                null,
+                expiryDate,
+                validityFrom,
+                Instant.now()
         );
-
-        repository.save(smartcard);
     }
 }

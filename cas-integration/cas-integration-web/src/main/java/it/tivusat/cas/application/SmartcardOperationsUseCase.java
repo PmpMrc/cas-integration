@@ -1,156 +1,194 @@
 package it.tivusat.cas.application;
 
 import it.tivusat.cas.api.dto.ActivateSmartcardRequest;
+import it.tivusat.cas.api.dto.SmartcardResponse;
+import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardStatus;
 import it.tivusat.cas.domain.SmartcardType;
+import it.tivusat.cas.domain.SmartcardValidator;
+import it.tivusat.cas.domain.UaRangeClassifier;
 import it.tivusat.cas.infrastructure.nagra.NagraSmartcardGateway;
-import it.tivusat.cas.infrastructure.persistence.SmartcardEntity;
-import it.tivusat.cas.infrastructure.persistence.SmartcardRepository;
 import it.tivusat.cas.infrastructure.nagra.NagraSmartcardStatusSnapshot;
-import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
 import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
+
+import java.time.Instant;
 
 @Service
 public class SmartcardOperationsUseCase {
 
-    private final SmartcardRepository repository;
+    private final SmartcardValidator smartcardValidator;
+    private final UaRangeClassifier uaRangeClassifier;
     private final NagraSmartcardGateway nagraSmartcardGateway;
 
     public SmartcardOperationsUseCase(
-            SmartcardRepository repository,
+            SmartcardValidator smartcardValidator,
+            UaRangeClassifier uaRangeClassifier,
             NagraSmartcardGateway nagraSmartcardGateway
     ) {
-        this.repository = repository;
+        this.smartcardValidator = smartcardValidator;
+        this.uaRangeClassifier = uaRangeClassifier;
         this.nagraSmartcardGateway = nagraSmartcardGateway;
     }
 
-    @Transactional
-    public SmartcardEntity activate(String sn, ActivateSmartcardRequest request) {
-        SmartcardEntity smartcard = findSmartcard(sn);
+    public SmartcardResponse activate(String sn, ActivateSmartcardRequest request) {
+        String ua = validateSnAndExtractUa(sn);
+        validateCaSnIfRequired(request.smartcardType(), request.caSn());
 
-        if (smartcard.getStatus() == SmartcardStatus.DELETED) {
-            throw new IllegalStateException("Cannot activate a deleted smartcard");
-        }
+        nagraSmartcardGateway.activateSmartcard(sn, ua, request.source(), request.caSn());
 
-        validateCaSnIfRequired(smartcard, request.caSn());
-
-        nagraSmartcardGateway.activateSmartcard(
-                smartcard.getSn(),
-                smartcard.getUa(),
-                smartcard.getSource(),
+        return baseResponse(
+                sn,
+                ua,
+                request.smartcardType(),
+                request.source(),
+                SmartcardStatus.ENABLED,
+                true,
                 request.caSn()
         );
-
-        smartcard.markEnabled(request.caSn());
-        return repository.save(smartcard);
     }
 
-    @Transactional
-    public SmartcardEntity refresh(String sn, ActivateSmartcardRequest request) {
-        SmartcardEntity smartcard = findSmartcard(sn);
+    public SmartcardResponse refresh(String sn, ActivateSmartcardRequest request) {
+        String ua = validateSnAndExtractUa(sn);
+        validateCaSnIfRequired(request.smartcardType(), request.caSn());
 
-        if (smartcard.getStatus() == SmartcardStatus.DELETED) {
-            throw new IllegalStateException("Cannot refresh a deleted smartcard");
-        }
+        nagraSmartcardGateway.refreshSmartcard(sn, ua, request.source(), request.caSn());
 
-        validateCaSnIfRequired(smartcard, request.caSn());
-
-        nagraSmartcardGateway.refreshSmartcard(
-                smartcard.getSn(),
-                smartcard.getUa(),
-                smartcard.getSource(),
+        return baseResponse(
+                sn,
+                ua,
+                request.smartcardType(),
+                request.source(),
+                SmartcardStatus.ENABLED,
+                true,
                 request.caSn()
         );
-
-        smartcard.markRefreshed(request.caSn());
-        return repository.save(smartcard);
     }
 
-    @Transactional
-    public SmartcardEntity suspend(String sn) {
-        SmartcardEntity smartcard = findSmartcard(sn);
+    public SmartcardResponse suspend(String sn, SmartcardSource source) {
+        String ua = validateSnAndExtractUa(sn);
 
-        if (smartcard.getStatus() == SmartcardStatus.DELETED) {
-            throw new IllegalStateException("Cannot suspend a deleted smartcard");
-        }
+        nagraSmartcardGateway.suspendSmartcard(sn, ua, source);
 
-        nagraSmartcardGateway.suspendSmartcard(
-                smartcard.getSn(),
-                smartcard.getSource()
+        return baseResponse(
+                sn,
+                ua,
+                null,
+                source,
+                SmartcardStatus.DISABLED,
+                true,
+                null
         );
-
-        smartcard.markDisabled();
-        return repository.save(smartcard);
     }
 
-    @Transactional
-    public SmartcardEntity delete(String sn) {
-        SmartcardEntity smartcard = findSmartcard(sn);
+    public SmartcardResponse delete(String sn, SmartcardSource source) {
+        String ua = validateSnAndExtractUa(sn);
 
-        nagraSmartcardGateway.deleteSmartcard(
-                smartcard.getSn(),
-                smartcard.getSource()
+        nagraSmartcardGateway.deleteSmartcard(sn, source);
+
+        return baseResponse(
+                sn,
+                ua,
+                null,
+                source,
+                SmartcardStatus.DELETED,
+                true,
+                null
         );
-
-        smartcard.markDeleted();
-        return repository.save(smartcard);
     }
 
-    @Transactional(readOnly = true)
-    public SmartcardEntity getStatus(String sn) {
-        return findSmartcard(sn);
-    }
-
-    private SmartcardEntity findSmartcard(String sn) {
-        return repository.findById(sn)
-                .orElseThrow(() -> new SmartcardNotFoundException(sn));
-    }
-
-    private void validateCaSnIfRequired(SmartcardEntity smartcard, String caSn) {
-        if (smartcard.getSmartcardType() == SmartcardType.TIVU_HD_PAIRING
-                && (caSn == null || caSn.isBlank())) {
-            throw new IllegalArgumentException("caSn is mandatory for TIVU_HD_PAIRING smartcards");
-        }
-    }
-
-    @Transactional
-    public SmartcardEntity syncStatus(String sn) {
-        SmartcardEntity smartcard = findSmartcard(sn);
+    public SmartcardResponse getStatus(String sn, SmartcardSource source) {
+        String ua = validateSnAndExtractUa(sn);
 
         NagraSmartcardStatusSnapshot snapshot =
-                nagraSmartcardGateway.fetchSmartcardStatus(
-                        smartcard.getSn(),
-                        smartcard.getSource()
-                );
+                nagraSmartcardGateway.fetchSmartcardStatus(sn, source);
 
         if (snapshot.skipped()) {
-            return smartcard;
-        }
-
-        if (snapshot.deviceNotFound()) {
-            smartcard.markNotActivatedAfterSync();
-        } else {
-            NagraDeviceResponse device = snapshot.device();
-
-            smartcard.syncDeviceStatus(
-                    device.status(),
-                    device.caSN()
-            );
+            return baseResponse(sn, ua, null, source, SmartcardStatus.ERROR, false, null);
         }
 
         NagraEntitlementResponse entitlement = snapshot.entitlement();
 
-        if (entitlement != null) {
-            smartcard.syncEntitlement(
-                    entitlement.id(),
-                    entitlement.productId(),
-                    entitlement.expiryDate()
+        if (snapshot.deviceNotFound()) {
+            return new SmartcardResponse(
+                    sn,
+                    ua,
+                    null,
+                    source,
+                    SmartcardStatus.PRELOADED,
+                    true,
+                    false,
+                    entitlement != null ? entitlement.id() : null,
+                    entitlement != null ? entitlement.productId() : null,
+                    null,
+                    entitlement != null ? entitlement.expiryDate() : null,
+                    Instant.now(),
+                    Instant.now()
             );
         }
 
-        return repository.save(smartcard);
+        NagraDeviceResponse device = snapshot.device();
+        SmartcardStatus status = "DISABLED".equalsIgnoreCase(device.status())
+                ? SmartcardStatus.DISABLED
+                : SmartcardStatus.ENABLED;
+
+        return new SmartcardResponse(
+                sn,
+                ua,
+                null,
+                source,
+                status,
+                true,
+                true,
+                entitlement != null ? entitlement.id() : null,
+                entitlement != null ? entitlement.productId() : null,
+                device.caSN(),
+                entitlement != null ? entitlement.expiryDate() : null,
+                Instant.now(),
+                Instant.now()
+        );
+    }
+
+    private String validateSnAndExtractUa(String sn) {
+        smartcardValidator.validate(sn);
+        String ua = smartcardValidator.extractUa(sn);
+        uaRangeClassifier.validateRestSupported(ua);
+        return ua;
+    }
+
+    private void validateCaSnIfRequired(SmartcardType smartcardType, String caSn) {
+        if (SmartcardType.TIVU_HD_PAIRING.equals(smartcardType)
+                && (caSn == null || caSn.trim().isEmpty())) {
+            throw new IllegalArgumentException("caSn is required for TIVU_HD_PAIRING smartcards");
+        }
+    }
+
+    private SmartcardResponse baseResponse(
+            String sn,
+            String ua,
+            SmartcardType smartcardType,
+            SmartcardSource source,
+            SmartcardStatus status,
+            boolean deviceCreated,
+            String caSn
+    ) {
+        Instant now = Instant.now();
+
+        return new SmartcardResponse(
+                sn,
+                ua,
+                smartcardType,
+                source,
+                status,
+                true,
+                deviceCreated,
+                smartcardType != null ? smartcardType.getNagraType() : null,
+                null,
+                caSn,
+                null,
+                now,
+                now
+        );
     }
 }

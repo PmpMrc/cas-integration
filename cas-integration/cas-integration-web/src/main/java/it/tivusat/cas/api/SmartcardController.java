@@ -5,15 +5,12 @@ import it.tivusat.cas.api.dto.PreloadSmartcardRequest;
 import it.tivusat.cas.api.dto.SmartcardResponse;
 import it.tivusat.cas.application.PreloadSmartcardUseCase;
 import it.tivusat.cas.application.SmartcardOperationsUseCase;
-import it.tivusat.cas.infrastructure.persistence.SmartcardEntity;
-import it.tivusat.cas.api.dto.ImportSmartcardsResponse;
-import it.tivusat.cas.application.SmartcardImportService;
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.multipart.MultipartFile;
-import jakarta.validation.Valid;
+import it.tivusat.cas.domain.SmartcardSource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/smartcards")
@@ -21,77 +18,69 @@ public class SmartcardController {
 
     private final PreloadSmartcardUseCase preloadSmartcardUseCase;
     private final SmartcardOperationsUseCase smartcardOperationsUseCase;
-    private final SmartcardImportService smartcardImportService;
 
     public SmartcardController(
             PreloadSmartcardUseCase preloadSmartcardUseCase,
-            SmartcardOperationsUseCase smartcardOperationsUseCase,
-            SmartcardImportService smartcardImportService
+            SmartcardOperationsUseCase smartcardOperationsUseCase
     ) {
         this.preloadSmartcardUseCase = preloadSmartcardUseCase;
         this.smartcardOperationsUseCase = smartcardOperationsUseCase;
-        this.smartcardImportService = smartcardImportService;
     }
 
     @PostMapping("/preload")
-    public ResponseEntity<Void> preload(@Valid @RequestBody PreloadSmartcardRequest request) {
-        preloadSmartcardUseCase.preload(request);
-        return ResponseEntity.accepted().build();
+    public ResponseEntity<SmartcardResponse> preload(
+            @Valid @RequestBody PreloadSmartcardRequest request
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(preloadSmartcardUseCase.preload(request));
     }
 
     @PostMapping("/{sn}/activate")
     public ResponseEntity<SmartcardResponse> activate(
-            @PathVariable String sn,
-            @RequestBody(required = false) ActivateSmartcardRequest request
+            @PathVariable("sn") String sn,
+            @Valid @RequestBody ActivateSmartcardRequest request
     ) {
-        ActivateSmartcardRequest safeRequest = request != null
-                ? request
-                : new ActivateSmartcardRequest(null);
-
-        SmartcardEntity smartcard = smartcardOperationsUseCase.activate(sn, safeRequest);
-        return ResponseEntity.ok(SmartcardResponse.fromEntity(smartcard));
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(smartcardOperationsUseCase.activate(sn, request));
     }
 
     @PostMapping("/{sn}/refresh")
     public ResponseEntity<SmartcardResponse> refresh(
-            @PathVariable String sn,
-            @RequestBody(required = false) ActivateSmartcardRequest request
+            @PathVariable("sn") String sn,
+            @Valid @RequestBody ActivateSmartcardRequest request
     ) {
-        ActivateSmartcardRequest safeRequest = request != null
-                ? request
-                : new ActivateSmartcardRequest(null);
-
-        SmartcardEntity smartcard = smartcardOperationsUseCase.refresh(sn, safeRequest);
-        return ResponseEntity.ok(SmartcardResponse.fromEntity(smartcard));
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(smartcardOperationsUseCase.refresh(sn, request));
     }
 
     @PostMapping("/{sn}/suspend")
-    public ResponseEntity<SmartcardResponse> suspend(@PathVariable String sn) {
-        SmartcardEntity smartcard = smartcardOperationsUseCase.suspend(sn);
-        return ResponseEntity.ok(SmartcardResponse.fromEntity(smartcard));
+    public ResponseEntity<SmartcardResponse> suspend(
+            @PathVariable("sn") String sn,
+            @RequestParam("source") SmartcardSource source
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(smartcardOperationsUseCase.suspend(sn, source));
     }
 
     @DeleteMapping("/{sn}")
-    public ResponseEntity<SmartcardResponse> delete(@PathVariable String sn) {
-        SmartcardEntity smartcard = smartcardOperationsUseCase.delete(sn);
-        return ResponseEntity.ok(SmartcardResponse.fromEntity(smartcard));
+    public ResponseEntity<SmartcardResponse> delete(
+            @PathVariable("sn") String sn,
+            @RequestParam("source") SmartcardSource source
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(smartcardOperationsUseCase.delete(sn, source));
     }
 
     @GetMapping("/{sn}/status")
-    public ResponseEntity<SmartcardResponse> getStatus(@PathVariable String sn) {
-        SmartcardEntity smartcard = smartcardOperationsUseCase.getStatus(sn);
-        return ResponseEntity.ok(SmartcardResponse.fromEntity(smartcard));
-    }
-
-    @PostMapping("/{sn}/sync-status")
-    public ResponseEntity<SmartcardResponse> syncStatus(@PathVariable String sn) {
-        SmartcardEntity smartcard = smartcardOperationsUseCase.syncStatus(sn);
-        return ResponseEntity.ok(SmartcardResponse.fromEntity(smartcard));
-    }
-
-    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ImportSmartcardsResponse> importSmartcards(@RequestPart("file") MultipartFile file) {
-        ImportSmartcardsResponse response = smartcardImportService.importSmartcards(file);
-        return ResponseEntity.accepted().body(response);
+    public ResponseEntity<SmartcardResponse> status(
+            @PathVariable("sn") String sn,
+            @RequestParam("source") SmartcardSource source
+    ) {
+        return ResponseEntity.ok(smartcardOperationsUseCase.getStatus(sn, source));
     }
 }
