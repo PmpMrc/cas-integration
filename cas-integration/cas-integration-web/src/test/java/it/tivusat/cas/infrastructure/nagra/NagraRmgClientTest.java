@@ -6,10 +6,13 @@ import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
 import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.invocation.Invocation;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.http.HttpMethod;
 
 import java.time.Instant;
@@ -17,22 +20,19 @@ import java.util.Collection;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class NagraRmgClientTest {
 
     private static final String SN = "109687603246";
 
-    @Mock
     private NagraRestExecutor restExecutor;
 
     @Mock
@@ -43,8 +43,22 @@ class NagraRmgClientTest {
 
     private NagraRmgClient client;
 
+    private NagraEntitlementResponse mockedEntitlementResponse;
+
     @BeforeEach
     void setUp() {
+        restExecutor = mock(NagraRestExecutor.class, invocation -> {
+            if ("execute".equals(invocation.getMethod().getName())) {
+                Object[] args = invocation.getArguments();
+
+                if (args.length >= 8 && NagraEntitlementResponse.class.equals(args[7])) {
+                    return mockedEntitlementResponse;
+                }
+            }
+
+            return Answers.RETURNS_DEFAULTS.answer(invocation);
+        });
+
         lenient().when(properties.paths()).thenReturn(paths);
 
         lenient().when(paths.createEntitlement()).thenReturn("/rmg/v1/entitlements");
@@ -77,19 +91,9 @@ class NagraRmgClientTest {
     }
 
     @Test
-    void getEntitlementsByAccountIdShouldEncodeFilterAndReturnFirstEntitlement() {
+    void getEntitlementsByAccountIdShouldEncodeFilterAndReturnEntitlement() {
         NagraEntitlementResponse expectedResponse = mock(NagraEntitlementResponse.class);
-
-        lenient().when(restExecutor.<NagraEntitlementResponse[]>execute(
-                any(NagraOperation.class),
-                anyString(),
-                any(HttpMethod.class),
-                anyString(),
-                any(SmartcardSource.class),
-                anyString(),
-                isNull(),
-                eq(NagraEntitlementResponse[].class)
-        )).thenReturn(new NagraEntitlementResponse[]{expectedResponse});
+        mockedEntitlementResponse = expectedResponse;
 
         NagraEntitlementResponse response = client.getEntitlementsByAccountId(
                 SmartcardSource.PHYSICAL,
@@ -106,29 +110,20 @@ class NagraRmgClientTest {
         assertRmgFilterEndpoint(String.valueOf(args[3]));
         assertEquals(SmartcardSource.PHYSICAL, args[4]);
         assertEquals("W", args[5]);
-        assertEquals(null, args[6]);
-        assertEquals(NagraEntitlementResponse[].class, args[7]);
+        assertNull(args[6]);
+        assertEquals(NagraEntitlementResponse.class, args[7]);
     }
 
     @Test
-    void getEntitlementsByAccountIdShouldReturnNullWhenRmgReturnsEmptyArray() {
-        lenient().when(restExecutor.<NagraEntitlementResponse[]>execute(
-                any(NagraOperation.class),
-                anyString(),
-                any(HttpMethod.class),
-                anyString(),
-                any(SmartcardSource.class),
-                anyString(),
-                isNull(),
-                eq(NagraEntitlementResponse[].class)
-        )).thenReturn(new NagraEntitlementResponse[0]);
+    void getEntitlementsByAccountIdShouldReturnNullWhenExecutorReturnsNull() {
+        mockedEntitlementResponse = null;
 
         NagraEntitlementResponse response = client.getEntitlementsByAccountId(
                 SmartcardSource.PHYSICAL,
                 SN
         );
 
-        assertEquals(null, response);
+        assertNull(response);
 
         Object[] args = singleInvocation().getArguments();
 
@@ -138,8 +133,8 @@ class NagraRmgClientTest {
         assertRmgFilterEndpoint(String.valueOf(args[3]));
         assertEquals(SmartcardSource.PHYSICAL, args[4]);
         assertEquals("W", args[5]);
-        assertEquals(null, args[6]);
-        assertEquals(NagraEntitlementResponse[].class, args[7]);
+        assertNull(args[6]);
+        assertEquals(NagraEntitlementResponse.class, args[7]);
     }
 
     private Invocation singleInvocation() {
