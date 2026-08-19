@@ -1,15 +1,3 @@
-spring:
-  datasource:
-    jndi-name: jdbc/TivusatCasDS
-
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
-
-  flyway:
-    enabled: true
-
 nagra:
   enabled: true
   base-url: https://endpoint-nagra-da-configurare

@@ -54,9 +54,9 @@ public class NagraRmgClient {
                 source,
                 "W",
                 null,
-                NagraEntitlementResponse.class,
-                filter
+                NagraEntitlementResponse.class
         );
+
     }
 
     private String encodeQueryParam(String value) {

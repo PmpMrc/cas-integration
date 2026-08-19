@@ -33,10 +33,6 @@ public class AdmDeviceRequest {
         return new AdmDeviceRequest(null, "ENABLED", caSn, ua, sn);
     }
 
-    public static AdmDeviceRequest suspend(String sn, String ua) {
-        return new AdmDeviceRequest(sn, "DISABLED", null, ua, sn);
-    }
-
     public static AdmDeviceRequest suspend() {
         return new AdmDeviceRequest(null, "DISABLED", null, null, null);
     }
