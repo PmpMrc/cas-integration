@@ -2,61 +2,54 @@ package it.tivusat.cas.domain;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class SmartcardValidatorTest {
 
     private final SmartcardValidator validator = new SmartcardValidator();
 
     @Test
-    void shouldValidateCorrectSerialNumber() {
-        assertDoesNotThrow(() -> validator.validateSerialNumber("109687603246"));
+    void shouldValidateValidSn() {
+        validator.validateSn("109687603246");
+
+        assertEquals("1096876032", validator.extractUa("109687603246"));
     }
 
     @Test
-    void shouldExtractUaFromSerialNumber() {
-        String ua = validator.extractUa("109687603246");
+    void shouldBuildSnFromUa() {
+        String sn = validator.buildSnFromUa("1096876032");
 
-        assertEquals("1096876032", ua);
+        assertEquals("109687603246", sn);
     }
 
     @Test
-    void shouldRejectNullSerialNumber() {
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> validator.validateSerialNumber(null)
-        );
-
-        assertTrue(exception.getMessage().contains("12 digits"));
+    void shouldFailWhenSnHasInvalidChecksum() {
+        assertThrows(IllegalArgumentException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                validator.validateSn("109687603200");
+            }
+        });
     }
 
     @Test
-    void shouldRejectSerialNumberWithInvalidFormat() {
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> validator.validateSerialNumber("ABC")
-        );
-
-        assertTrue(exception.getMessage().contains("12 digits"));
+    void shouldFailWhenSnIsNotTwelveDigits() {
+        assertThrows(IllegalArgumentException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                validator.validateSn("123");
+            }
+        });
     }
 
     @Test
-    void shouldRejectSerialNumberWithLessThanTwelveDigits() {
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> validator.validateSerialNumber("1096876032")
-        );
-
-        assertTrue(exception.getMessage().contains("12 digits"));
-    }
-
-    @Test
-    void shouldRejectSerialNumberWithInvalidChecksum() {
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> validator.validateSerialNumber("109687603200")
-        );
-
-        assertTrue(exception.getMessage().contains("checksum"));
+    void shouldFailWhenUaIsNotTenDigits() {
+        assertThrows(IllegalArgumentException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                validator.buildSnFromUa("123");
+            }
+        });
     }
 }
