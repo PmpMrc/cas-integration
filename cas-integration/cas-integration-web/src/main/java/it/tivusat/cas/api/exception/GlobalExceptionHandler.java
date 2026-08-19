@@ -14,12 +14,18 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(SmartcardNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleSmartcardNotFound(
@@ -136,6 +142,7 @@ public class GlobalExceptionHandler {
             Exception ex,
             HttpServletRequest request
     ) {
+        log.error("Unexpected internal error on path {}", request.getRequestURI(), ex);
         return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "INTERNAL_SERVER_ERROR",
@@ -169,6 +176,25 @@ public class GlobalExceptionHandler {
                         "MISSING_REQUEST_PART",
                         "Missing multipart part: " + ex.getRequestPartName(),
                         request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingServletRequestParameter(
+            MissingServletRequestParameterException exception,
+            HttpServletRequest request
+    ) {
+        Map<String, String> details = new LinkedHashMap<String, String>();
+        details.put(exception.getParameterName(), "Required request parameter is missing");
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.withDetails(
+                        HttpStatus.BAD_REQUEST.value(),
+                        "VALIDATION_ERROR",
+                        "Request validation failed",
+                        request.getRequestURI(),
+                        details
                 ));
     }
 

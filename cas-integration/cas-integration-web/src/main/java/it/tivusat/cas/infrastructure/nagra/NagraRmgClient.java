@@ -6,6 +6,8 @@ import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
 import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriUtils;
+import java.io.UnsupportedEncodingException;
 
 @Component
 public class NagraRmgClient {
@@ -41,17 +43,23 @@ public class NagraRmgClient {
             String sn
     ) {
         String filter = "{\"accountId\":\"" + sn + "\"}";
+        String encodedFilter = encodeQueryParam(filter);
+        String endpoint = properties.paths().getEntitlements() + "?filter=" + encodedFilter;
 
         return executor.execute(
                 NagraOperation.RMG_GET_ENTITLEMENTS,
                 sn,
                 HttpMethod.GET,
-                properties.paths().getEntitlements() + "?filter={filter}",
+                endpoint,
                 source,
                 "W",
                 null,
                 NagraEntitlementResponse.class,
                 filter
         );
+    }
+
+    private String encodeQueryParam(String value) {
+        return UriUtils.encodeQueryParam(value, java.nio.charset.StandardCharsets.UTF_8);
     }
 }

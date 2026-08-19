@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jboss-deployment-structure xmlns="urn:jboss:deployment-structure:1.2">
+    <sub-deployment name="cas-integration-web.war">
+        <exclude-subsystems>
+            <subsystem name="resteasy"/>
+        </exclude-subsystems>
+
+        <exclusions>
+            <module name="com.fasterxml.jackson.core.jackson-annotations"/>
+            <module name="com.fasterxml.jackson.core.jackson-core"/>
+            <module name="com.fasterxml.jackson.core.jackson-databind"/>
+            <module name="com.fasterxml.jackson.datatype.jackson-datatype-jdk8"/>
+            <module name="com.fasterxml.jackson.datatype.jackson-datatype-jsr310"/>
+            <module name="com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider"/>
+            <module name="com.fasterxml.jackson.jaxrs.jackson-jaxrs-base"/>
+            <module name="com.fasterxml.jackson.module.jackson-module-jaxb-annotations"/>
+            <module name="org.jboss.resteasy.resteasy-jackson-provider"/>
+            <module name="org.jboss.resteasy.resteasy-jackson2-provider"/>
+        </exclusions>
+    </sub-deployment>
+</jboss-deployment-structure>

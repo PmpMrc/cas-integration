@@ -3,12 +3,13 @@ package it.tivusat.cas.api.dto;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardType;
 
-import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 
 public class PreloadSmartcardRequest {
 
-        @NotBlank
+        @NotNull
+        @Size(min = 1)
         private String sn;
 
         @NotNull
@@ -17,7 +18,8 @@ public class PreloadSmartcardRequest {
         @NotNull
         private SmartcardSource source;
 
-        @NotBlank
+        @NotNull
+        @Size(min = 1)
         private String productId;
 
         public PreloadSmartcardRequest() {

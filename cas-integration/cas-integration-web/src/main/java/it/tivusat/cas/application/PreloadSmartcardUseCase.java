@@ -30,6 +30,9 @@ public class PreloadSmartcardUseCase {
 
     public SmartcardResponse preload(PreloadSmartcardRequest request) {
         smartcardValidator.validate(request.sn());
+        if (request.productId() == null || request.productId().trim().isEmpty()) {
+            throw new IllegalArgumentException("productId is required");
+        }
 
         String ua = smartcardValidator.extractUa(request.sn());
         uaRangeClassifier.validateRestSupported(ua);

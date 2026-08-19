@@ -30,7 +30,7 @@ public class AdmDeviceRequest {
     }
 
     public static AdmDeviceRequest refresh(String sn, String ua, String caSn) {
-        return new AdmDeviceRequest(sn, "ENABLED", caSn, ua, sn);
+        return new AdmDeviceRequest(null, "ENABLED", caSn, ua, sn);
     }
 
     public static AdmDeviceRequest suspend(String sn, String ua) {
