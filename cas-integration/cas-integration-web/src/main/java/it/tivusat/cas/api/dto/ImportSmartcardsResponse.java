@@ -4,50 +4,46 @@ import java.util.List;
 
 public class ImportSmartcardsResponse {
 
+    private String fileName;
     private int totalRows;
-    private int successRows;
-    private int failedRows;
+    private int successCount;
+    private int failureCount;
     private List<ImportSmartcardRowResult> results;
 
     public ImportSmartcardsResponse() {
     }
 
-    public ImportSmartcardsResponse(int totalRows, int successRows, int failedRows, List<ImportSmartcardRowResult> results) {
+    public ImportSmartcardsResponse(
+            String fileName,
+            int totalRows,
+            int successCount,
+            int failureCount,
+            List<ImportSmartcardRowResult> results
+    ) {
+        this.fileName = fileName;
         this.totalRows = totalRows;
-        this.successRows = successRows;
-        this.failedRows = failedRows;
+        this.successCount = successCount;
+        this.failureCount = failureCount;
         this.results = results;
+    }
+
+    public String getFileName() {
+        return fileName;
     }
 
     public int getTotalRows() {
         return totalRows;
     }
 
-    public int getSuccessRows() {
-        return successRows;
+    public int getSuccessCount() {
+        return successCount;
     }
 
-    public int getFailedRows() {
-        return failedRows;
+    public int getFailureCount() {
+        return failureCount;
     }
 
     public List<ImportSmartcardRowResult> getResults() {
-        return results;
-    }
-
-    public int totalRows() {
-        return totalRows;
-    }
-
-    public int successRows() {
-        return successRows;
-    }
-
-    public int failedRows() {
-        return failedRows;
-    }
-
-    public List<ImportSmartcardRowResult> results() {
         return results;
     }
 }

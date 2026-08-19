@@ -43,4 +43,13 @@ public class SmartcardValidator {
                 ) % 100
         );
     }
+
+    public String buildSnFromUa(String ua) {
+        if (ua == null || !ua.matches("\\d{10}")) {
+            throw new IllegalArgumentException("Smartcard UA must contain exactly 10 digits");
+        }
+
+        int checksum = calculateChecksum(Long.parseLong(ua));
+        return ua + String.format("%02d", checksum);
+    }
 }

@@ -6,9 +6,14 @@ import it.tivusat.cas.api.dto.SmartcardResponse;
 import it.tivusat.cas.application.PreloadSmartcardUseCase;
 import it.tivusat.cas.application.SmartcardOperationsUseCase;
 import it.tivusat.cas.domain.SmartcardSource;
+import it.tivusat.cas.domain.SmartcardType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import it.tivusat.cas.api.dto.ImportSmartcardsResponse;
+import it.tivusat.cas.application.SmartcardImportService;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
 
@@ -18,13 +23,16 @@ public class SmartcardController {
 
     private final PreloadSmartcardUseCase preloadSmartcardUseCase;
     private final SmartcardOperationsUseCase smartcardOperationsUseCase;
+    private final SmartcardImportService smartcardImportService;
 
     public SmartcardController(
             PreloadSmartcardUseCase preloadSmartcardUseCase,
-            SmartcardOperationsUseCase smartcardOperationsUseCase
+            SmartcardOperationsUseCase smartcardOperationsUseCase,
+            SmartcardImportService smartcardImportService
     ) {
         this.preloadSmartcardUseCase = preloadSmartcardUseCase;
         this.smartcardOperationsUseCase = smartcardOperationsUseCase;
+        this.smartcardImportService = smartcardImportService;
     }
 
     @PostMapping("/preload")
@@ -83,4 +91,14 @@ public class SmartcardController {
     ) {
         return ResponseEntity.ok(smartcardOperationsUseCase.getStatus(sn, source));
     }
+
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ImportSmartcardsResponse> importSmartcards(
+            @RequestParam("file") MultipartFile file
+    ) {
+        return ResponseEntity.ok(
+                smartcardImportService.importFile(file)
+        );
+    }
+
 }

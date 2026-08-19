@@ -2,68 +2,94 @@ package it.tivusat.cas.api.dto;
 
 public class ImportSmartcardRowResult {
 
-    private int rowNumber;
+    private int lineNumber;
+    private String originalValue;
     private String sn;
+    private String ua;
     private boolean success;
-    private String error;
+    private String status;
     private String message;
 
     public ImportSmartcardRowResult() {
     }
 
-    public ImportSmartcardRowResult(int rowNumber, String sn, boolean success, String error, String message) {
-        this.rowNumber = rowNumber;
+    public ImportSmartcardRowResult(
+            int lineNumber,
+            String originalValue,
+            String sn,
+            String ua,
+            boolean success,
+            String status,
+            String message
+    ) {
+        this.lineNumber = lineNumber;
+        this.originalValue = originalValue;
         this.sn = sn;
+        this.ua = ua;
         this.success = success;
-        this.error = error;
+        this.status = status;
         this.message = message;
     }
 
-    public static ImportSmartcardRowResult success(int rowNumber, String sn, String message) {
-        return new ImportSmartcardRowResult(rowNumber, sn, true, null, message);
+    public static ImportSmartcardRowResult success(
+            int lineNumber,
+            String originalValue,
+            String sn,
+            String ua,
+            String status
+    ) {
+        return new ImportSmartcardRowResult(
+                lineNumber,
+                originalValue,
+                sn,
+                ua,
+                true,
+                status,
+                null
+        );
     }
 
-    public static ImportSmartcardRowResult error(int rowNumber, String sn, String error, String message) {
-        return new ImportSmartcardRowResult(rowNumber, sn, false, error, message);
+    public static ImportSmartcardRowResult failure(
+            int lineNumber,
+            String originalValue,
+            String message
+    ) {
+        return new ImportSmartcardRowResult(
+                lineNumber,
+                originalValue,
+                null,
+                null,
+                false,
+                "ERROR",
+                message
+        );
     }
 
-    public int getRowNumber() {
-        return rowNumber;
+    public int getLineNumber() {
+        return lineNumber;
+    }
+
+    public String getOriginalValue() {
+        return originalValue;
     }
 
     public String getSn() {
         return sn;
     }
 
+    public String getUa() {
+        return ua;
+    }
+
     public boolean isSuccess() {
         return success;
     }
 
-    public String getError() {
-        return error;
+    public String getStatus() {
+        return status;
     }
 
     public String getMessage() {
-        return message;
-    }
-
-    public int rowNumber() {
-        return rowNumber;
-    }
-
-    public String sn() {
-        return sn;
-    }
-
-    public boolean success() {
-        return success;
-    }
-
-    public String error() {
-        return error;
-    }
-
-    public String message() {
         return message;
     }
 }
