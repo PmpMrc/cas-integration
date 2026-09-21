@@ -1,6 +1,6 @@
 nagra:
   enabled: true
-  base-url: https://endpoint-nagra-da-configurare
+  base-url: http://10.21.222.2:16001
   source-id:
     physical: "1000"
     virtual: "2000"
