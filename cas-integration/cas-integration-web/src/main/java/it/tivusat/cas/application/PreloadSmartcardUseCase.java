@@ -30,8 +30,8 @@ public class PreloadSmartcardUseCase {
 
     public SmartcardResponse preload(PreloadSmartcardRequest request) {
         smartcardValidator.validate(request.sn());
-        if (request.productId() == null || request.productId().trim().isEmpty()) {
-            throw new IllegalArgumentException("productId is required");
+        if (!"22".equals(request.productId())) {
+            throw new IllegalArgumentException("productId must be 22");
         }
 
         String ua = smartcardValidator.extractUa(request.sn());
@@ -57,7 +57,7 @@ public class PreloadSmartcardUseCase {
                 SmartcardStatus.PRELOADED,
                 true,
                 false,
-                request.smartcardType().getNagraType(),
+                request.sn() + "_" + request.smartcardType().getNagraType(),
                 request.productId(),
                 null,
                 expiryDate,

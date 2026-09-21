@@ -19,9 +19,9 @@
   "response": {
     "status": 200,
     "jsonBody": {
-      "_id": "TivuHD",
+      "_id": "109687603246_TivuHD",
       "accountId": "109687603246",
-      "productId": "PRODUCT_TEST",
+      "productId": "22",
       "status": "SUBSCRIBED",
       "validityType": "ABSOLUTE",
       "productType": "SUBSCRIPTION",

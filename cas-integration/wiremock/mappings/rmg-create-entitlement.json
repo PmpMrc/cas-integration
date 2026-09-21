@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "url": "/rmg/v1/entitlements",
+    "url": "/rmg/v1/operator/entitlements",
     "headers": {
       "nv-source-id": {
         "matches": "1000|2000"

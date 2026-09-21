@@ -49,7 +49,7 @@ public class NagraSmartcardGateway {
 
         RmgEntitlementRequest entitlementRequest =
                 RmgEntitlementRequest.subscription(
-                        smartcardType.getNagraType(),
+                        sn + "_" + smartcardType.getNagraType(),
                         sn,
                         productId,
                         validityFrom,

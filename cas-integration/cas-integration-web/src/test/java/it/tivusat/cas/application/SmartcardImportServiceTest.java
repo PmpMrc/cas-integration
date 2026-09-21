@@ -42,7 +42,7 @@ class SmartcardImportServiceTest {
                 "cards.csv",
                 "text/csv",
                 ("sn,source,smartcardType,productId\n"
-                        + SN + ",PHYSICAL,TIVU_HD,PRODUCT_TEST\n").getBytes()
+                        + SN + ",PHYSICAL,TIVU_HD,22\n").getBytes()
         );
 
         ImportSmartcardsResponse response = service.importFile(file);
@@ -64,7 +64,7 @@ class SmartcardImportServiceTest {
                 "cards.csv",
                 "text/csv",
                 ("ua,source,smartcardType,productId\n"
-                        + UA + ",PHYSICAL,TIVU_HD,PRODUCT_TEST\n").getBytes()
+                        + UA + ",PHYSICAL,TIVU_HD,22\n").getBytes()
         );
 
         ImportSmartcardsResponse response = service.importFile(file);
@@ -84,8 +84,8 @@ class SmartcardImportServiceTest {
                 "cards.csv",
                 "text/csv",
                 ("sn,source,smartcardType,productId\n"
-                        + SN + ",PHYSICAL,TIVU_HD,PRODUCT_TEST\n"
-                        + "123,PHYSICAL,TIVU_HD,PRODUCT_TEST\n").getBytes()
+                        + SN + ",PHYSICAL,TIVU_HD,22\n"
+                        + "123,PHYSICAL,TIVU_HD,22\n").getBytes()
         );
 
         ImportSmartcardsResponse response = service.importFile(file);
@@ -122,7 +122,7 @@ class SmartcardImportServiceTest {
                 "cards.csv",
                 "text/csv",
                 ("sn,source,smartcardType,productId\n"
-                        + SN + ",PHYSICAL,TIVU_HD,PRODUCT_TEST\n").getBytes()
+                        + SN + ",PHYSICAL,TIVU_HD,22\n").getBytes()
         );
 
         service.importFile(file);
@@ -134,7 +134,7 @@ class SmartcardImportServiceTest {
         assertEquals(SN, captor.getValue().sn());
         assertEquals(SmartcardSource.PHYSICAL, captor.getValue().source());
         assertEquals(SmartcardType.TIVU_HD, captor.getValue().smartcardType());
-        assertEquals("PRODUCT_TEST", captor.getValue().productId());
+        assertEquals("22", captor.getValue().productId());
     }
 
     private SmartcardResponse response() {
@@ -147,7 +147,7 @@ class SmartcardImportServiceTest {
                 true,
                 false,
                 "TivuHD",
-                "PRODUCT_TEST",
+                "22",
                 null,
                 Instant.parse("2030-01-01T00:00:00Z"),
                 Instant.parse("2026-01-01T00:00:00Z"),

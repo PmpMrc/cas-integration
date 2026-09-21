@@ -14,7 +14,7 @@ public class RmgEntitlementRequest {
     private String status;
     private String validityType;
     private String productType;
-    private Instant validityFrom;
+    private Instant validFrom;
     private Instant expiryDate;
 
     public RmgEntitlementRequest() {
@@ -27,7 +27,7 @@ public class RmgEntitlementRequest {
             String status,
             String validityType,
             String productType,
-            Instant validityFrom,
+            Instant validFrom,
             Instant expiryDate
     ) {
         this.id = id;
@@ -36,7 +36,7 @@ public class RmgEntitlementRequest {
         this.status = status;
         this.validityType = validityType;
         this.productType = productType;
-        this.validityFrom = validityFrom;
+        this.validFrom = validFrom;
         this.expiryDate = expiryDate;
     }
 
@@ -44,7 +44,7 @@ public class RmgEntitlementRequest {
             String entitlementId,
             String accountId,
             String productId,
-            Instant validityFrom,
+            Instant validFrom,
             Instant expiryDate
     ) {
         return new RmgEntitlementRequest(
@@ -54,7 +54,7 @@ public class RmgEntitlementRequest {
                 "SUBSCRIBED",
                 "ABSOLUTE",
                 "SUBSCRIPTION",
-                validityFrom,
+                validFrom,
                 expiryDate
         );
     }
@@ -107,12 +107,12 @@ public class RmgEntitlementRequest {
         return productType;
     }
 
-    public Instant getValidityFrom() {
-        return validityFrom;
+    public Instant getValidFrom() {
+        return validFrom;
     }
 
-    public Instant validityFrom() {
-        return validityFrom;
+    public Instant validFrom() {
+        return validFrom;
     }
 
     public Instant getExpiryDate() {

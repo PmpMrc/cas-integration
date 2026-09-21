@@ -57,7 +57,7 @@ class SmartcardControllerTest {
                 + "\"sn\":\"" + SN + "\","
                 + "\"smartcardType\":\"TIVU_HD\","
                 + "\"source\":\"PHYSICAL\","
-                + "\"productId\":\"PRODUCT_TEST\""
+                + "\"productId\":\"22\""
                 + "}";
 
         mockMvc.perform(post("/api/v1/smartcards/preload")
@@ -155,7 +155,7 @@ class SmartcardControllerTest {
                 "file",
                 "file.csv",
                 "text/csv",
-                "sn,source,smartcardType,productId\n109687603246,PHYSICAL,TIVU_HD,PRODUCT_TEST\n".getBytes()
+                "sn,source,smartcardType,productId\n109687603246,PHYSICAL,TIVU_HD,22\n".getBytes()
         );
 
         mockMvc.perform(multipart("/api/v1/smartcards/import")
@@ -191,7 +191,7 @@ class SmartcardControllerTest {
                 status == SmartcardStatus.PRELOADED,
                 status == SmartcardStatus.ENABLED || status == SmartcardStatus.DISABLED,
                 "TivuHD",
-                "PRODUCT_TEST",
+                "22",
                 null,
                 Instant.parse("2030-01-01T00:00:00Z"),
                 Instant.parse("2026-01-01T00:00:00Z"),

@@ -61,7 +61,7 @@ class NagraRmgClientTest {
 
         lenient().when(properties.paths()).thenReturn(paths);
 
-        lenient().when(paths.createEntitlement()).thenReturn("/rmg/v1/entitlements");
+        lenient().when(paths.createEntitlement()).thenReturn("/rmg/v1/operator/entitlements");
         lenient().when(paths.getEntitlements()).thenReturn("/rmg/v1/operator/entitlements");
 
         client = new NagraRmgClient(properties, restExecutor);
@@ -72,7 +72,7 @@ class NagraRmgClientTest {
         RmgEntitlementRequest request = RmgEntitlementRequest.subscription(
                 "TivuHD",
                 SN,
-                "PRODUCT_TEST",
+                "22",
                 Instant.parse("2026-01-01T00:00:00Z"),
                 Instant.parse("2030-01-01T00:00:00Z")
         );
@@ -84,7 +84,7 @@ class NagraRmgClientTest {
         assertEquals(NagraOperation.RMG_CREATE_ENTITLEMENT, args[0]);
         assertEquals(SN, args[1]);
         assertEquals(HttpMethod.POST, args[2]);
-        assertEquals("/rmg/v1/entitlements", args[3]);
+        assertEquals("/rmg/v1/operator/entitlements", args[3]);
         assertEquals(SmartcardSource.PHYSICAL, args[4]);
         assertEquals("W", args[5]);
         assertSame(request, args[6]);

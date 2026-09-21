@@ -29,7 +29,7 @@ class PreloadSmartcardUseCaseTest {
 
     private static final String SN = "109687603246";
     private static final String UA = "1096876032";
-    private static final String PRODUCT_ID = "PRODUCT_TEST";
+    private static final String PRODUCT_ID = "22";
 
     @Mock
     private NagraSmartcardGateway nagraSmartcardGateway;
@@ -65,7 +65,7 @@ class PreloadSmartcardUseCaseTest {
         assertEquals(SmartcardType.TIVU_HD, response.getSmartcardType());
         assertEquals(SmartcardSource.PHYSICAL, response.getSource());
         assertEquals(SmartcardStatus.PRELOADED, response.getStatus());
-        assertEquals("TivuHD", response.getEntitlementId());
+        assertEquals(SN + "_TivuHD", response.getEntitlementId());
         assertEquals(PRODUCT_ID, response.getProductId());
 
         verify(nagraSmartcardGateway).preloadSmartcard(

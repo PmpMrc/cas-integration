@@ -183,7 +183,7 @@ public class SmartcardOperationsUseCase {
                 status,
                 true,
                 deviceCreated,
-                smartcardType != null ? smartcardType.getNagraType() : null,
+                smartcardType != null ? sn + "_" + smartcardType.getNagraType() : null,
                 null,
                 caSn,
                 null,

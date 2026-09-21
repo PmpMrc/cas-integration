@@ -6,7 +6,7 @@ nagra:
     virtual: "2000"
   paths:
     create-account: "/adm/v1/accounts"
-    create-entitlement: "/rmg/v1/entitlements"
+    create-entitlement: "/rmg/v1/operator/entitlements"
     create-device: "/adm/v1/devices"
     update-device: "/v1/devices/{deviceId}"
     get-device: "/adm/v1/devices/{deviceId}"
