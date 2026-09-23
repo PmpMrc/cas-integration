@@ -79,6 +79,22 @@ class PreloadSmartcardUseCaseTest {
     }
 
     @Test
+    void shouldAddFourCalendarYearsIncludingLeapYears() {
+        assertEquals(
+                Instant.parse("2030-09-23T12:24:34Z"),
+                PreloadSmartcardUseCase.expiryAfterFourYears(
+                        Instant.parse("2026-09-23T12:24:34Z")
+                )
+        );
+        assertEquals(
+                Instant.parse("2028-02-29T12:24:34Z"),
+                PreloadSmartcardUseCase.expiryAfterFourYears(
+                        Instant.parse("2024-02-29T12:24:34Z")
+                )
+        );
+    }
+
+    @Test
     void shouldFailWhenProductIdIsBlank() {
         PreloadSmartcardRequest request = new PreloadSmartcardRequest(
                 SN,

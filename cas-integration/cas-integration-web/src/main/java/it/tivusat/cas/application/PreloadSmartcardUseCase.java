@@ -9,6 +9,7 @@ import it.tivusat.cas.infrastructure.nagra.NagraSmartcardGateway;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 
 @Service
@@ -37,8 +38,8 @@ public class PreloadSmartcardUseCase {
         String ua = smartcardValidator.extractUa(request.sn());
         uaRangeClassifier.validateRestSupported(ua);
 
-        Instant validityFrom = Instant.now();
-        Instant expiryDate = validityFrom.plus(365 * 4L, ChronoUnit.DAYS);
+        Instant validityFrom = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        Instant expiryDate = expiryAfterFourYears(validityFrom);
 
         nagraSmartcardGateway.preloadSmartcard(
                 request.sn(),
@@ -64,5 +65,9 @@ public class PreloadSmartcardUseCase {
                 validityFrom,
                 Instant.now()
         );
+    }
+
+    static Instant expiryAfterFourYears(Instant validityFrom) {
+        return validityFrom.atZone(ZoneOffset.UTC).plusYears(4).toInstant();
     }
 }
