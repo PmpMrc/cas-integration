@@ -1,5 +1,7 @@
 package it.tivusat.cas.infrastructure.nagra;
 
+import java.util.Locale;
+
 public class NagraException extends RuntimeException {
 
     private final Integer httpStatus;
@@ -23,6 +25,15 @@ public class NagraException extends RuntimeException {
 
     public String getResponseBody() {
         return responseBody;
+    }
+
+    public boolean isAlreadyExists() {
+        if (httpStatus == null || httpStatus != 409 || responseBody == null) {
+            return false;
+        }
+
+        String message = responseBody.toLowerCase(Locale.ROOT);
+        return message.contains("already exist") || message.contains("duplicate");
     }
 
     public boolean isDeviceNotFound() {

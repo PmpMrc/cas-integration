@@ -45,7 +45,14 @@ public class NagraSmartcardGateway {
             return;
         }
 
-        nagraAdmClient.createAccount(source, AdmAccountRequest.active(sn));
+        try {
+            nagraAdmClient.createAccount(source, AdmAccountRequest.active(sn));
+        } catch (NagraException exception) {
+            if (!exception.isAlreadyExists()) {
+                throw exception;
+            }
+            log.info("ADM account already exists for smartcard {}; continuing preload", sn);
+        }
 
         RmgEntitlementRequest entitlementRequest =
                 RmgEntitlementRequest.subscription(
@@ -56,7 +63,32 @@ public class NagraSmartcardGateway {
                         expiryDate
                 );
 
-        nagraRmgClient.createEntitlement(source, entitlementRequest);
+        try {
+            nagraRmgClient.createEntitlement(source, entitlementRequest);
+        } catch (NagraException exception) {
+            if (!exception.isAlreadyExists()) {
+                throw exception;
+            }
+
+            NagraEntitlementResponse existing =
+                    nagraRmgClient.getEntitlementsByAccountId(source, sn);
+            if (existing == null) {
+                throw exception;
+            }
+            if (!entitlementRequest.id().equals(existing.id())
+                    || !sn.equals(existing.accountId())
+                    || !productId.equals(existing.productId())
+                    || !"SUBSCRIBED".equalsIgnoreCase(existing.status())
+                    || !"ABSOLUTE".equalsIgnoreCase(existing.validityType())
+                    || !"SUBSCRIPTION".equalsIgnoreCase(existing.productType())
+                    || existing.expiryDate() == null
+                    || !existing.expiryDate().isAfter(Instant.now())) {
+                throw new IllegalStateException(
+                        "Existing NAGRA entitlement does not match preload for smartcard " + sn
+                );
+            }
+            log.info("RMG entitlement already exists for smartcard {}; preload complete", sn);
+        }
     }
 
     public void activateSmartcard(
