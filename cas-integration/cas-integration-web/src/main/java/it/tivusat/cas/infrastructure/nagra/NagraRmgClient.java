@@ -8,6 +8,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriUtils;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 
 @Component
 public class NagraRmgClient {
@@ -42,9 +43,16 @@ public class NagraRmgClient {
             SmartcardSource source,
             String sn
     ) {
-        String filter = "{\"accountId\":\"" + sn + "\"}";
-        String encodedFilter = encodeQueryParam(filter);
-        String endpoint = properties.paths().getEntitlements() + "?filter=" + encodedFilter;
+        String filter = "{\"accountId\": \"" + sn + "\"}";
+        String encodedFilter = UriUtils.encodeQueryParam(
+                filter,
+                StandardCharsets.UTF_8
+        );
+
+        String endpoint =
+                properties.paths().getEntitlements()
+                        + "?filter="
+                        + encodedFilter;
 
         return executor.execute(
                 NagraOperation.RMG_GET_ENTITLEMENTS,

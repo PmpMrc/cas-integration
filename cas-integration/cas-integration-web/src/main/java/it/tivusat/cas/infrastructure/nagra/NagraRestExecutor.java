@@ -17,6 +17,8 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
+
 @Component
 public class NagraRestExecutor {
 
@@ -98,7 +100,7 @@ public class NagraRestExecutor {
                     : new HttpEntity<Object>(body, headers);
 
             ResponseEntity<T> response = restTemplate.exchange(
-                    url,
+                    URI.create(url),
                     method,
                     entity,
                     responseType

@@ -59,10 +59,29 @@ public class NagraSmartcardGateway {
         nagraRmgClient.createEntitlement(source, entitlementRequest);
     }
 
-    public void activateSmartcard(String sn, String ua, SmartcardSource source, String caSn) {
+    public void activateSmartcard(
+            String sn,
+            String ua,
+            SmartcardSource source,
+            String caSn
+    ) {
         if (!properties.enabled()) {
-            log.warn("NAGRA integration disabled. Skipping activation for smartcard {}", sn);
+            log.warn(
+                    "NAGRA integration disabled. Skipping activation for smartcard {}",
+                    sn
+            );
             return;
+        }
+
+        NagraEntitlementResponse entitlement =
+                nagraRmgClient.getEntitlementsByAccountId(source, sn);
+
+        if (entitlement == null
+                || !sn.equals(entitlement.accountId())
+                || !"SUBSCRIBED".equalsIgnoreCase(entitlement.status())) {
+            throw new IllegalStateException(
+                    "Cannot create device: no active entitlement found for smartcard " + sn
+            );
         }
 
         nagraAdmClient.createDevice(
