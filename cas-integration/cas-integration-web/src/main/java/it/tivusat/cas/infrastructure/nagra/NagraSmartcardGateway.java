@@ -12,6 +12,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 public class NagraSmartcardGateway {
@@ -75,16 +77,32 @@ public class NagraSmartcardGateway {
             if (existing == null) {
                 throw exception;
             }
-            if (!entitlementRequest.id().equals(existing.id())
-                    || !sn.equals(existing.accountId())
-                    || !productId.equals(existing.productId())
-                    || !"SUBSCRIBED".equalsIgnoreCase(existing.status())
-                    || !"ABSOLUTE".equalsIgnoreCase(existing.validityType())
-                    || !"SUBSCRIPTION".equalsIgnoreCase(existing.productType())
-                    || existing.expiryDate() == null
-                    || !existing.expiryDate().isAfter(Instant.now())) {
+            List<String> mismatches = new ArrayList<>();
+            if (!entitlementRequest.id().equals(existing.id())) {
+                mismatches.add("_id expected " + entitlementRequest.id() + ", got " + existing.id());
+            }
+            if (!sn.equals(existing.accountId())) {
+                mismatches.add("accountId expected " + sn + ", got " + existing.accountId());
+            }
+            if (!productId.equals(existing.productId())) {
+                mismatches.add("productId expected " + productId + ", got " + existing.productId());
+            }
+            if (!"SUBSCRIBED".equalsIgnoreCase(existing.status())) {
+                mismatches.add("status expected SUBSCRIBED, got " + existing.status());
+            }
+            if (!"ABSOLUTE".equalsIgnoreCase(existing.validityType())) {
+                mismatches.add("validityType expected ABSOLUTE, got " + existing.validityType());
+            }
+            if (!"SUBSCRIPTION".equalsIgnoreCase(existing.productType())) {
+                mismatches.add("productType expected SUBSCRIPTION, got " + existing.productType());
+            }
+            if (existing.expiryDate() == null || !existing.expiryDate().isAfter(Instant.now())) {
+                mismatches.add("expiryDate must be in the future, got " + existing.expiryDate());
+            }
+            if (!mismatches.isEmpty()) {
                 throw new IllegalStateException(
-                        "Existing NAGRA entitlement does not match preload for smartcard " + sn
+                        "Cannot complete preload for smartcard " + sn
+                                + ": existing RMG entitlement differs: " + String.join("; ", mismatches)
                 );
             }
             log.info("RMG entitlement already exists for smartcard {}; preload complete", sn);
@@ -108,11 +126,25 @@ public class NagraSmartcardGateway {
         NagraEntitlementResponse entitlement =
                 nagraRmgClient.getEntitlementsByAccountId(source, sn);
 
-        if (entitlement == null
-                || !sn.equals(entitlement.accountId())
-                || !"SUBSCRIBED".equalsIgnoreCase(entitlement.status())) {
-            throw new IllegalStateException(
-                    "Cannot create device: no active entitlement found for smartcard " + sn
+        if (entitlement == null) {
+            throw EntitlementValidationException.notFound(sn);
+        }
+        if (entitlement.accountId() == null || entitlement.accountId().trim().isEmpty()) {
+            throw EntitlementValidationException.missingAccountId(
+                    sn, entitlement.id(), entitlement.status()
+            );
+        }
+        if (!sn.equals(entitlement.accountId())) {
+            throw EntitlementValidationException.accountMismatch(
+                    sn, entitlement.accountId(), entitlement.status(), entitlement.id()
+            );
+        }
+        if (entitlement.status() == null || entitlement.status().trim().isEmpty()) {
+            throw EntitlementValidationException.missingStatus(sn, entitlement.id());
+        }
+        if (!"SUBSCRIBED".equalsIgnoreCase(entitlement.status())) {
+            throw EntitlementValidationException.statusMismatch(
+                    sn, entitlement.status(), entitlement.id()
             );
         }
 

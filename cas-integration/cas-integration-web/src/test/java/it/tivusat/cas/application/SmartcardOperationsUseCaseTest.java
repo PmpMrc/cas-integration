@@ -4,6 +4,12 @@ import it.tivusat.cas.api.dto.ActivateSmartcardRequest;
 import it.tivusat.cas.api.dto.SmartcardResponse;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardStatus;
+import it.tivusat.cas.domain.NagraOperation;
+import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
+import it.tivusat.cas.infrastructure.nagra.NagraException;
+import it.tivusat.cas.infrastructure.nagra.NagraSmartcardStatusSnapshot;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
 import it.tivusat.cas.domain.SmartcardType;
 import it.tivusat.cas.domain.SmartcardValidator;
 import it.tivusat.cas.domain.UaRangeClassifier;
@@ -19,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class SmartcardOperationsUseCaseTest {
@@ -141,11 +148,56 @@ class SmartcardOperationsUseCaseTest {
         SmartcardResponse response = useCase.delete(SN, SmartcardSource.PHYSICAL);
 
         assertEquals(SmartcardStatus.DELETED, response.getStatus());
+        assertEquals(false, response.isDeviceCreated());
 
         verify(nagraSmartcardGateway).deleteSmartcard(
                 eq(SN),
                 eq(SmartcardSource.PHYSICAL)
         );
+    }
+
+    @Test
+    void statusWithoutDeviceOrEntitlementIsNotPreloaded() {
+        when(nagraSmartcardGateway.fetchSmartcardStatus(SN, SmartcardSource.PHYSICAL))
+                .thenReturn(NagraSmartcardStatusSnapshot.deviceNotFound(null));
+
+        assertThrows(SmartcardNotFoundException.class,
+                () -> useCase.getStatus(SN, SmartcardSource.PHYSICAL));
+    }
+
+    @Test
+    void statusWithEntitlementAndNoDeviceIsPreloaded() {
+        NagraEntitlementResponse entitlement = new NagraEntitlementResponse(
+                SN + "_TivuHD", SN, "22", "SUBSCRIBED", "ABSOLUTE",
+                "SUBSCRIPTION", null, null);
+        when(nagraSmartcardGateway.fetchSmartcardStatus(SN, SmartcardSource.PHYSICAL))
+                .thenReturn(NagraSmartcardStatusSnapshot.deviceNotFound(entitlement));
+
+        SmartcardResponse response = useCase.getStatus(SN, SmartcardSource.PHYSICAL);
+        assertEquals(SmartcardStatus.PRELOADED, response.getStatus());
+        assertEquals("22", response.getProductId());
+    }
+
+    @Test
+    void statusWithUnexpectedNagraDeviceStateIsNotEnabled() {
+        when(nagraSmartcardGateway.fetchSmartcardStatus(SN, SmartcardSource.PHYSICAL))
+                .thenReturn(NagraSmartcardStatusSnapshot.of(
+                        new NagraDeviceResponse("PENDING", null, UA, SN), null));
+
+        NagraException error = assertThrows(NagraException.class,
+                () -> useCase.getStatus(SN, SmartcardSource.PHYSICAL));
+        assertEquals(NagraException.FailureType.INVALID_RESPONSE, error.getFailureType());
+        assertEquals(NagraOperation.ADM_GET_DEVICE, error.getOperation());
+    }
+
+    @Test
+    void statusWithDisabledNagraDeviceIsDisabled() {
+        when(nagraSmartcardGateway.fetchSmartcardStatus(SN, SmartcardSource.PHYSICAL))
+                .thenReturn(NagraSmartcardStatusSnapshot.of(
+                        new NagraDeviceResponse("DISABLED", null, UA, SN), null));
+
+        assertEquals(SmartcardStatus.DISABLED,
+                useCase.getStatus(SN, SmartcardSource.PHYSICAL).getStatus());
     }
 
     @Test

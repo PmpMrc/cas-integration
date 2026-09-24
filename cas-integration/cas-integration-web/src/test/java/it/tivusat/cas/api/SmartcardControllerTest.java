@@ -8,6 +8,9 @@ import it.tivusat.cas.application.SmartcardOperationsUseCase;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardStatus;
 import it.tivusat.cas.domain.SmartcardType;
+import it.tivusat.cas.domain.NagraOperation;
+import it.tivusat.cas.infrastructure.nagra.EntitlementValidationException;
+import it.tivusat.cas.infrastructure.nagra.NagraException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -85,6 +88,44 @@ class SmartcardControllerTest {
                         .content(body))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.status", is("ENABLED")));
+    }
+
+    @Test
+    void activateShouldExplainWhyDeviceWasNotCreated() throws Exception {
+        when(smartcardOperationsUseCase.activate(eq(SN), any()))
+                .thenThrow(EntitlementValidationException.notFound(SN));
+
+        mockMvc.perform(post("/api/v1/smartcards/" + SN + "/activate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source\":\"PHYSICAL\",\"smartcardType\":\"TIVU_HD\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error", is("INVALID_SMARTCARD_STATE")))
+                .andExpect(jsonPath("$.details.reason", is("NOT_FOUND")))
+                .andExpect(jsonPath("$.details.operation", is("RMG_GET_ENTITLEMENTS")))
+                .andExpect(jsonPath("$.message", org.hamcrest.Matchers.containsString("ADM device was not created")));
+    }
+
+    @Test
+    void preloadShouldExposeNagraOperationAndErrorCode() throws Exception {
+        when(preloadSmartcardUseCase.preload(any())).thenThrow(new NagraException(
+                400, "{\"code\":400,\"errorCode\":1001,\"message\":\"Generic bad request\"}",
+                null, NagraOperation.RMG_CREATE_ENTITLEMENT,
+                "/rmg/v1/operator/entitlements", NagraException.FailureType.HTTP_ERROR,
+                "{\"accountId\":\"" + SN + "\",\"productId\":\"22\"}"
+        ));
+
+        mockMvc.perform(post("/api/v1/smartcards/preload")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"sn\":\"" + SN + "\",\"source\":\"PHYSICAL\","
+                                + "\"smartcardType\":\"TIVU_HD\",\"productId\":\"22\"}"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.error", is("NAGRA_ERROR")))
+                .andExpect(jsonPath("$.details.operation", is("RMG_CREATE_ENTITLEMENT")))
+                .andExpect(jsonPath("$.details.upstreamHttpStatus", is("400")))
+                .andExpect(jsonPath("$.details.upstreamErrorCode", is("1001")))
+                .andExpect(jsonPath("$.details.upstreamMessage", is("Generic bad request")))
+                .andExpect(jsonPath("$.details.requestPayload", org.hamcrest.Matchers.containsString("productId")))
+                .andExpect(jsonPath("$.message", org.hamcrest.Matchers.containsString("RMG_CREATE_ENTITLEMENT")));
     }
 
     @Test

@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -82,7 +83,8 @@ class NagraSmartcardGatewayTest {
                 .when(rmg).createEntitlement(eq(SOURCE), any(RmgEntitlementRequest.class));
         when(rmg.getEntitlementsByAccountId(SOURCE, SN)).thenReturn(entitlement("23"));
 
-        assertThrows(IllegalStateException.class, this::preload);
+        IllegalStateException exception = assertThrows(IllegalStateException.class, this::preload);
+        org.junit.jupiter.api.Assertions.assertTrue(exception.getMessage().contains("productId expected 22, got 23"));
     }
 
     @Test
@@ -101,6 +103,52 @@ class NagraSmartcardGatewayTest {
                 .createEntitlement(eq(SOURCE), any(RmgEntitlementRequest.class));
 
         assertThrows(NagraException.class, this::preload);
+    }
+
+    @Test
+    void activationWithoutEntitlementReportsWhatWasMissingAndDoesNotCreateDevice() {
+        EntitlementValidationException exception = assertThrows(
+                EntitlementValidationException.class,
+                () -> gateway.activateSmartcard(SN, "1096876032", SOURCE, null)
+        );
+
+        assertEquals("NOT_FOUND", exception.details().get("reason"));
+        assertEquals("RMG_GET_ENTITLEMENTS", exception.details().get("operation"));
+        verifyNoInteractions(adm);
+    }
+
+    @Test
+    void activationWithAnotherAccountReportsActualAccountIdAndDoesNotCreateDevice() {
+        when(rmg.getEntitlementsByAccountId(SOURCE, SN)).thenReturn(new NagraEntitlementResponse(
+                SN + "_TivuHD", "999999999999", "22", "SUBSCRIBED", "ABSOLUTE",
+                "SUBSCRIPTION", from, until
+        ));
+
+        EntitlementValidationException exception = assertThrows(
+                EntitlementValidationException.class,
+                () -> gateway.activateSmartcard(SN, "1096876032", SOURCE, null)
+        );
+
+        assertEquals("ACCOUNT_MISMATCH", exception.details().get("reason"));
+        assertEquals("999999999999", exception.details().get("actualAccountId"));
+        verifyNoInteractions(adm);
+    }
+
+    @Test
+    void activationWithUnsubscribedEntitlementReportsActualStatusAndDoesNotCreateDevice() {
+        when(rmg.getEntitlementsByAccountId(SOURCE, SN)).thenReturn(new NagraEntitlementResponse(
+                SN + "_TivuHD", SN, "22", "CANCELLED", "ABSOLUTE",
+                "SUBSCRIPTION", from, until
+        ));
+
+        EntitlementValidationException exception = assertThrows(
+                EntitlementValidationException.class,
+                () -> gateway.activateSmartcard(SN, "1096876032", SOURCE, null)
+        );
+
+        assertEquals("STATUS_NOT_SUBSCRIBED", exception.details().get("reason"));
+        assertEquals("CANCELLED", exception.details().get("actualStatus"));
+        verifyNoInteractions(adm);
     }
 
     private NagraEntitlementResponse entitlement(String productId) {

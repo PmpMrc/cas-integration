@@ -142,7 +142,11 @@ public class NagraRestExecutor {
             throw new NagraException(
                     exception.getRawStatusCode(),
                     responseBody,
-                    exception
+                    exception,
+                    operation,
+                    endpoint,
+                    NagraException.FailureType.HTTP_ERROR,
+                    requestPayload
             );
         } catch (ResourceAccessException exception) {
             long durationMs = System.currentTimeMillis() - start;
@@ -163,7 +167,11 @@ public class NagraRestExecutor {
             throw new NagraException(
                     null,
                     exception.getMessage(),
-                    exception
+                    exception,
+                    operation,
+                    endpoint,
+                    NagraException.FailureType.NETWORK_ERROR,
+                    requestPayload
             );
         } catch (RestClientException exception) {
             long durationMs = System.currentTimeMillis() - start;
@@ -184,7 +192,11 @@ public class NagraRestExecutor {
             throw new NagraException(
                     null,
                     exception.getMessage(),
-                    exception
+                    exception,
+                    operation,
+                    endpoint,
+                    NagraException.FailureType.INVALID_RESPONSE,
+                    requestPayload
             );        }
     }
 

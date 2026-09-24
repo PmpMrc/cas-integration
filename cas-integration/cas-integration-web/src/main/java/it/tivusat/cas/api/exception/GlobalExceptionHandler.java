@@ -1,8 +1,12 @@
 package it.tivusat.cas.api.exception;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import it.tivusat.cas.api.dto.ErrorResponse;
 import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
 import it.tivusat.cas.infrastructure.nagra.NagraException;
+import it.tivusat.cas.infrastructure.nagra.EntitlementValidationException;
 import it.tivusat.cas.domain.exception.UnsupportedSmartcardRangeException;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.ConstraintViolationException;
@@ -26,6 +30,13 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final int MAX_UPSTREAM_MESSAGE_LENGTH = 240;
+
+    private final ObjectMapper objectMapper;
+
+    public GlobalExceptionHandler(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @ExceptionHandler(SmartcardNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleSmartcardNotFound(
@@ -58,6 +69,15 @@ public class GlobalExceptionHandler {
             IllegalStateException ex,
             HttpServletRequest request
     ) {
+        if (ex instanceof EntitlementValidationException) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse.withDetails(
+                    HttpStatus.CONFLICT.value(),
+                    "INVALID_SMARTCARD_STATE",
+                    ex.getMessage(),
+                    request.getRequestURI(),
+                    ((EntitlementValidationException) ex).details()
+            ));
+        }
         return buildResponse(
                 HttpStatus.CONFLICT,
                 "INVALID_SMARTCARD_STATE",
@@ -71,20 +91,85 @@ public class GlobalExceptionHandler {
             NagraException ex,
             HttpServletRequest request
     ) {
-        HttpStatus status = ex.getHttpStatus() == null
-                ? HttpStatus.SERVICE_UNAVAILABLE
-                : HttpStatus.BAD_GATEWAY;
+        String operation = ex.getOperation() == null ? "NAGRA call" : ex.getOperation().name();
+        Map<String, String> details = new LinkedHashMap<>();
+        details.put("failureType", ex.getFailureType().name());
+        if (ex.getOperation() != null) {
+            details.put("operation", operation);
+        }
+        if (ex.getEndpoint() != null) {
+            details.put("endpoint", ex.getEndpoint());
+        }
+        if (ex.getRequestPayload() != null) {
+            details.put("requestPayload", summarize(ex.getRequestPayload(), 1024));
+        }
 
-        String message = ex.getHttpStatus() == null
-                ? "NAGRA service is not reachable: " + ex.getResponseBody()
-                : "NAGRA service returned an error: " + ex.getResponseBody();
+        HttpStatus status;
+        String message;
+        if (ex.getHttpStatus() != null) {
+            status = HttpStatus.BAD_GATEWAY;
+            details.put("upstreamHttpStatus", String.valueOf(ex.getHttpStatus()));
+            String upstreamMessage = readUpstreamError(ex.getResponseBody(), details);
+            String code = details.get("upstreamErrorCode");
+            message = "NAGRA " + operation + " failed (HTTP " + ex.getHttpStatus()
+                    + (code == null ? "" : ", errorCode " + code) + "): " + upstreamMessage;
+        } else if (ex.getFailureType() == NagraException.FailureType.INVALID_RESPONSE) {
+            status = HttpStatus.BAD_GATEWAY;
+            message = "NAGRA response could not be read during " + operation
+                    + ": " + summarize(ex.getResponseBody());
+        } else {
+            status = HttpStatus.SERVICE_UNAVAILABLE;
+            message = "NAGRA could not be reached during " + operation
+                    + ": " + summarize(ex.getResponseBody());
+        }
 
-        return buildResponse(
-                status,
-                "NAGRA_ERROR",
-                message,
-                request.getRequestURI()
-        );
+        return ResponseEntity.status(status).body(ErrorResponse.withDetails(
+                status.value(), "NAGRA_ERROR", message, request.getRequestURI(), details
+        ));
+    }
+
+    private String readUpstreamError(String responseBody, Map<String, String> details) {
+        if (responseBody == null || responseBody.trim().isEmpty()) {
+            return "No error details returned by NAGRA";
+        }
+        try {
+            JsonNode response = objectMapper.readTree(responseBody);
+            if (response != null && response.isObject()) {
+                putIfPresent(details, "upstreamErrorCode", response.get("errorCode"));
+                putIfPresent(details, "upstreamCode", response.get("code"));
+                JsonNode message = response.get("message");
+                if (message != null && message.isTextual() && !message.asText().trim().isEmpty()) {
+                    String summary = summarize(message.asText());
+                    details.put("upstreamMessage", summary);
+                    return summary;
+                }
+            }
+        } catch (JsonProcessingException ignored) {
+            // NAGRA may return plain text instead of JSON.
+        }
+        String summary = summarize(responseBody);
+        details.put("upstreamMessage", summary);
+        return summary;
+    }
+
+    private void putIfPresent(Map<String, String> details, String key, JsonNode value) {
+        if (value != null && !value.isNull()) {
+            details.put(key, summarize(value.asText()));
+        }
+    }
+
+    private String summarize(String value) {
+        return summarize(value, MAX_UPSTREAM_MESSAGE_LENGTH);
+    }
+
+    private String summarize(String value, int maxLength) {
+        if (value == null || value.trim().isEmpty()) {
+            return "No further details available";
+        }
+        String compact = value.replaceAll("\\s+", " ").trim();
+        return compact.length() > maxLength
+                ? compact.substring(0, maxLength) + "..."
+                : compact;
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

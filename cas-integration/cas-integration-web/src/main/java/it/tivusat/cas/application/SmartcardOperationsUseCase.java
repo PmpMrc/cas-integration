@@ -4,6 +4,9 @@ import it.tivusat.cas.api.dto.ActivateSmartcardRequest;
 import it.tivusat.cas.api.dto.SmartcardResponse;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardStatus;
+import it.tivusat.cas.domain.NagraOperation;
+import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
+import it.tivusat.cas.infrastructure.nagra.NagraException;
 import it.tivusat.cas.domain.SmartcardType;
 import it.tivusat.cas.domain.SmartcardValidator;
 import it.tivusat.cas.domain.UaRangeClassifier;
@@ -93,7 +96,7 @@ public class SmartcardOperationsUseCase {
                 null,
                 source,
                 SmartcardStatus.DELETED,
-                true,
+                false,
                 null
         );
     }
@@ -111,6 +114,9 @@ public class SmartcardOperationsUseCase {
         NagraEntitlementResponse entitlement = snapshot.entitlement();
 
         if (snapshot.deviceNotFound()) {
+            if (entitlement == null) {
+                throw new SmartcardNotFoundException(sn);
+            }
             return new SmartcardResponse(
                     sn,
                     ua,
@@ -129,9 +135,23 @@ public class SmartcardOperationsUseCase {
         }
 
         NagraDeviceResponse device = snapshot.device();
-        SmartcardStatus status = "DISABLED".equalsIgnoreCase(device.status())
-                ? SmartcardStatus.DISABLED
-                : SmartcardStatus.ENABLED;
+        String deviceStatus = device == null ? null : device.status();
+        SmartcardStatus status;
+        if ("DISABLED".equalsIgnoreCase(deviceStatus)) {
+            status = SmartcardStatus.DISABLED;
+        } else if ("ENABLED".equalsIgnoreCase(deviceStatus)) {
+            status = SmartcardStatus.ENABLED;
+        } else {
+            throw new NagraException(
+                    null,
+                    "ADM device returned an unexpected status for smartcard " + sn
+                            + ": " + deviceStatus,
+                    null,
+                    NagraOperation.ADM_GET_DEVICE,
+                    null,
+                    NagraException.FailureType.INVALID_RESPONSE
+            );
+        }
 
         return new SmartcardResponse(
                 sn,
