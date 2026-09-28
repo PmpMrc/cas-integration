@@ -114,24 +114,7 @@ public class SmartcardOperationsUseCase {
         NagraEntitlementResponse entitlement = snapshot.entitlement();
 
         if (snapshot.deviceNotFound()) {
-            if (entitlement == null) {
-                throw new SmartcardNotFoundException(sn);
-            }
-            return new SmartcardResponse(
-                    sn,
-                    ua,
-                    null,
-                    source,
-                    SmartcardStatus.PRELOADED,
-                    true,
-                    false,
-                    entitlement != null ? entitlement.id() : null,
-                    entitlement != null ? entitlement.productId() : null,
-                    null,
-                    entitlement != null ? entitlement.expiryDate() : null,
-                    Instant.now(),
-                    Instant.now()
-            );
+            throw new SmartcardNotFoundException(sn);
         }
 
         NagraDeviceResponse device = snapshot.device();

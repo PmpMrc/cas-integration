@@ -123,31 +123,6 @@ public class NagraSmartcardGateway {
             return;
         }
 
-        NagraEntitlementResponse entitlement =
-                nagraRmgClient.getEntitlementsByAccountId(source, sn);
-
-        if (entitlement == null) {
-            throw EntitlementValidationException.notFound(sn);
-        }
-        if (entitlement.accountId() == null || entitlement.accountId().trim().isEmpty()) {
-            throw EntitlementValidationException.missingAccountId(
-                    sn, entitlement.id(), entitlement.status()
-            );
-        }
-        if (!sn.equals(entitlement.accountId())) {
-            throw EntitlementValidationException.accountMismatch(
-                    sn, entitlement.accountId(), entitlement.status(), entitlement.id()
-            );
-        }
-        if (entitlement.status() == null || entitlement.status().trim().isEmpty()) {
-            throw EntitlementValidationException.missingStatus(sn, entitlement.id());
-        }
-        if (!"SUBSCRIBED".equalsIgnoreCase(entitlement.status())) {
-            throw EntitlementValidationException.statusMismatch(
-                    sn, entitlement.status(), entitlement.id()
-            );
-        }
-
         nagraAdmClient.createDevice(
                 source,
                 AdmDeviceRequest.activate(sn, ua, caSn)
