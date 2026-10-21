@@ -166,16 +166,15 @@ class SmartcardOperationsUseCaseTest {
     }
 
     @Test
-    void statusWithEntitlementAndNoDeviceIsPreloaded() {
+    void statusWithEntitlementAndNoDeviceIsNotFound() {
         NagraEntitlementResponse entitlement = new NagraEntitlementResponse(
                 SN + "_TivuHD", SN, "22", "SUBSCRIBED", "ABSOLUTE",
                 "SUBSCRIPTION", null, null);
         when(nagraSmartcardGateway.fetchSmartcardStatus(SN, SmartcardSource.PHYSICAL))
                 .thenReturn(NagraSmartcardStatusSnapshot.deviceNotFound(entitlement));
 
-        SmartcardResponse response = useCase.getStatus(SN, SmartcardSource.PHYSICAL);
-        assertEquals(SmartcardStatus.PRELOADED, response.getStatus());
-        assertEquals("22", response.getProductId());
+        assertThrows(SmartcardNotFoundException.class,
+                () -> useCase.getStatus(SN, SmartcardSource.PHYSICAL));
     }
 
     @Test
