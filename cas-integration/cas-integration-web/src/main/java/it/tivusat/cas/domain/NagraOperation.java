@@ -2,6 +2,7 @@ package it.tivusat.cas.domain;
 
 public enum NagraOperation {
     ADM_CREATE_ACCOUNT,
+    ADM_CREATE_BUNDLED_ACCOUNT,
     RMG_CREATE_ENTITLEMENT,
     ADM_CREATE_DEVICE,
     ADM_REFRESH_DEVICE,

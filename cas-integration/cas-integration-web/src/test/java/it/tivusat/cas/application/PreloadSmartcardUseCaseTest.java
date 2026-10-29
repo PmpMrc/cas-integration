@@ -19,6 +19,8 @@ import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -65,16 +67,20 @@ class PreloadSmartcardUseCaseTest {
         assertEquals(SmartcardType.TIVU_HD, response.getSmartcardType());
         assertEquals(SmartcardSource.PHYSICAL, response.getSource());
         assertEquals(SmartcardStatus.PRELOADED, response.getStatus());
-        assertEquals(SN + "_TivuHD", response.getEntitlementId());
-        assertEquals(PRODUCT_ID, response.getProductId());
+
+        assertTrue(response.isAccountCreated());
+        assertTrue(response.isDeviceCreated());
+
+        assertNull(response.getEntitlementId());
+        assertNull(response.getProductId());
+        assertNull(response.getExpiryDate());
+        assertNull(response.getCaSn());
 
         verify(nagraSmartcardGateway).preloadSmartcard(
-                eq(SN),
-                eq(SmartcardType.TIVU_HD),
-                eq(SmartcardSource.PHYSICAL),
-                eq(PRODUCT_ID),
-                any(Instant.class),
-                any(Instant.class)
+                SN,
+                UA,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL
         );
     }
 
@@ -132,5 +138,38 @@ class PreloadSmartcardUseCaseTest {
         });
 
         verifyNoInteractions(nagraSmartcardGateway);
+    }
+
+    @Test
+    void shouldPropagateNagraFailureWithoutReturningPreloaded() {
+        PreloadSmartcardRequest request = new PreloadSmartcardRequest(
+                SN,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL,
+                PRODUCT_ID
+        );
+
+        it.tivusat.cas.infrastructure.nagra.NagraException failure =
+                new it.tivusat.cas.infrastructure.nagra.NagraException(
+                        503,
+                        "Service unavailable"
+                );
+
+        org.mockito.Mockito.doThrow(failure)
+                .when(nagraSmartcardGateway)
+                .preloadSmartcard(
+                        SN,
+                        UA,
+                        SmartcardType.TIVU_HD,
+                        SmartcardSource.PHYSICAL
+                );
+
+        it.tivusat.cas.infrastructure.nagra.NagraException actual =
+                assertThrows(
+                        it.tivusat.cas.infrastructure.nagra.NagraException.class,
+                        () -> useCase.preload(request)
+                );
+
+        org.junit.jupiter.api.Assertions.assertSame(failure, actual);
     }
 }

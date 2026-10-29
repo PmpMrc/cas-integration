@@ -6,6 +6,7 @@ import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountRequest;
 import it.tivusat.cas.infrastructure.nagra.dto.AdmDeviceRequest;
 import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
+import it.tivusat.cas.infrastructure.nagra.dto.AdmBundledAccountRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,6 +53,7 @@ class NagraAdmClientTest {
         lenient().when(properties.paths()).thenReturn(paths);
 
         lenient().when(paths.createAccount()).thenReturn("/adm/v1/accounts");
+        lenient().when(paths.createBundledAccount()).thenReturn("/adm/v1/bundled/accounts");
         lenient().when(paths.createDevice()).thenReturn("/adm/v1/devices");
         lenient().when(paths.updateDevice()).thenReturn("/v1/devices/{deviceId}");
         lenient().when(paths.getDevice()).thenReturn("/adm/v1/devices/{deviceId}");
@@ -207,6 +209,31 @@ class NagraAdmClientTest {
         assertEquals(NagraDeviceResponse.class, args[7]);
 
         assertUriVariableIfPresent(args, 8, SN);
+    }
+
+    @Test
+    void createBundledAccountShouldCallBundledEndpoint() {
+        AdmBundledAccountRequest request =
+                AdmBundledAccountRequest.preload(
+                        SN + "_TivuHD",
+                        UA
+                );
+
+        client.createBundledAccount(
+                SmartcardSource.PHYSICAL,
+                SN,
+                request
+        );
+
+        Object[] args = singleInvocation().getArguments();
+
+        assertEquals(NagraOperation.ADM_CREATE_BUNDLED_ACCOUNT, args[0]);
+        assertEquals(SN, args[1]);
+        assertEquals(HttpMethod.POST, args[2]);
+        assertEquals("/adm/v1/bundled/accounts", args[3]);
+        assertEquals(SmartcardSource.PHYSICAL, args[4]);
+        assertEquals("W", args[5]);
+        assertSame(request, args[6]);
     }
 
     private Invocation singleInvocation() {

@@ -5,6 +5,7 @@ import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountRequest;
 import it.tivusat.cas.infrastructure.nagra.dto.AdmDeviceRequest;
 import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
+import it.tivusat.cas.infrastructure.nagra.dto.AdmBundledAccountRequest;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 
@@ -100,6 +101,22 @@ public class NagraAdmClient {
                 null,
                 NagraDeviceResponse.class,
                 sn
+        );
+    }
+
+    public void createBundledAccount(
+            SmartcardSource source,
+            String sn,
+            AdmBundledAccountRequest request
+    ) {
+        executor.execute(
+                NagraOperation.ADM_CREATE_BUNDLED_ACCOUNT,
+                sn,
+                HttpMethod.POST,
+                properties.paths().createBundledAccount(),
+                source,
+                "W",
+                request
         );
     }
 }

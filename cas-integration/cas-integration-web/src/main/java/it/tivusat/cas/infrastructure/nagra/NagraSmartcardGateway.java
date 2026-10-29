@@ -1,12 +1,9 @@
 package it.tivusat.cas.infrastructure.nagra;
 
+import it.tivusat.cas.domain.NagraOperation;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardType;
-import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountRequest;
-import it.tivusat.cas.infrastructure.nagra.dto.AdmDeviceRequest;
-import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
-import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
-import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
+import it.tivusat.cas.infrastructure.nagra.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -36,77 +33,27 @@ public class NagraSmartcardGateway {
 
     public void preloadSmartcard(
             String sn,
+            String ua,
             SmartcardType smartcardType,
-            SmartcardSource source,
-            String productId,
-            Instant validityFrom,
-            Instant expiryDate
+            SmartcardSource source
     ) {
         if (!properties.enabled()) {
-            log.warn("NAGRA integration disabled. Skipping preload for smartcard {}", sn);
-            return;
+            throw new NagraException(
+                    null,
+                    "NAGRA integration disabled; preload was not executed",
+                    null,
+                    NagraOperation.ADM_CREATE_BUNDLED_ACCOUNT,
+                    properties.paths().createBundledAccount(),
+                    NagraException.FailureType.INTEGRATION_DISABLED
+            );
         }
 
-        try {
-            nagraAdmClient.createAccount(source, AdmAccountRequest.active(sn));
-        } catch (NagraException exception) {
-            if (!exception.isAlreadyExists()) {
-                throw exception;
-            }
-            log.info("ADM account already exists for smartcard {}; continuing preload", sn);
-        }
+        String accountId = sn + "_" + smartcardType.getNagraType();
 
-        RmgEntitlementRequest entitlementRequest =
-                RmgEntitlementRequest.subscription(
-                        sn + "_" + smartcardType.getNagraType(),
-                        sn,
-                        productId,
-                        validityFrom,
-                        expiryDate
-                );
+        AdmBundledAccountRequest request =
+                AdmBundledAccountRequest.preload(accountId, ua);
 
-        try {
-            nagraRmgClient.createEntitlement(source, entitlementRequest);
-        } catch (NagraException exception) {
-            if (!exception.isAlreadyExists()) {
-                throw exception;
-            }
-
-            NagraEntitlementResponse existing =
-                    nagraRmgClient.getEntitlementsByAccountId(source, sn);
-            if (existing == null) {
-                throw exception;
-            }
-            List<String> mismatches = new ArrayList<>();
-            if (!entitlementRequest.id().equals(existing.id())) {
-                mismatches.add("_id expected " + entitlementRequest.id() + ", got " + existing.id());
-            }
-            if (!sn.equals(existing.accountId())) {
-                mismatches.add("accountId expected " + sn + ", got " + existing.accountId());
-            }
-            if (!productId.equals(existing.productId())) {
-                mismatches.add("productId expected " + productId + ", got " + existing.productId());
-            }
-            if (!"SUBSCRIBED".equalsIgnoreCase(existing.status())) {
-                mismatches.add("status expected SUBSCRIBED, got " + existing.status());
-            }
-            if (!"ABSOLUTE".equalsIgnoreCase(existing.validityType())) {
-                mismatches.add("validityType expected ABSOLUTE, got " + existing.validityType());
-            }
-            if (!"SUBSCRIPTION".equalsIgnoreCase(existing.productType())) {
-                mismatches.add("productType expected SUBSCRIPTION, got " + existing.productType());
-            }
-            if (existing.expiryDate() == null || !existing.expiryDate().isAfter(Instant.now())) {
-                mismatches.add("expiryDate must be in the future, got " + existing.expiryDate());
-            }
-            if (!mismatches.isEmpty()) {
-                throw new IllegalStateException(
-                        "Cannot complete preload for smartcard " + sn
-                                + ": existing RMG entitlement differs: " + String.join("; ", mismatches)
-                );
-            }
-            log.info("RMG entitlement already exists for smartcard {}; preload complete", sn);
-        }
+        nagraAdmClient.createBundledAccount(source, sn, request);
     }
 
     public void activateSmartcard(

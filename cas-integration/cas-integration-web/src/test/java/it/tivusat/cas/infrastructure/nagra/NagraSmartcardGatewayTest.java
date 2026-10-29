@@ -2,113 +2,153 @@ package it.tivusat.cas.infrastructure.nagra;
 
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardType;
-import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountRequest;
-import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
-import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
+import it.tivusat.cas.infrastructure.nagra.dto.AdmBundledAccountRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class NagraSmartcardGatewayTest {
 
     private static final String SN = "109687603246";
-    private static final SmartcardSource SOURCE = SmartcardSource.PHYSICAL;
+    private static final String UA = "1096876032";
+    private static final SmartcardSource SOURCE =
+            SmartcardSource.PHYSICAL;
 
-    @Mock private NagraAdmClient adm;
-    @Mock private NagraRmgClient rmg;
+    @Mock
+    private NagraAdmClient adm;
 
+    @Mock
+    private NagraRmgClient rmg;
+
+    private NagraProperties properties;
     private NagraSmartcardGateway gateway;
-    private Instant from;
-    private Instant until;
 
     @BeforeEach
     void setUp() {
-        NagraProperties properties = new NagraProperties();
+        properties = new NagraProperties();
         properties.setEnabled(true);
+        properties.paths().setCreateBundledAccount(
+                "/adm/v1/bundled/accounts"
+        );
+
         gateway = new NagraSmartcardGateway(properties, adm, rmg);
-        from = Instant.now();
-        until = from.plus(1460, ChronoUnit.DAYS);
     }
 
     private void preload() {
-        gateway.preloadSmartcard(SN, SmartcardType.TIVU_HD, SOURCE, "22", from, until);
+        gateway.preloadSmartcard(
+                SN,
+                UA,
+                SmartcardType.TIVU_HD,
+                SOURCE
+        );
     }
 
     @Test
-    void retriesEntitlementAfterPartialPreload() {
-        NagraException rmgFailure = new NagraException(503, "service unavailable");
-        doThrow(rmgFailure).doNothing().when(rmg)
-                .createEntitlement(eq(SOURCE), any(RmgEntitlementRequest.class));
-        doNothing().doThrow(new NagraException(409, "Account already exists"))
-                .when(adm).createAccount(eq(SOURCE), any(AdmAccountRequest.class));
+    void shouldCreateBundledAccountWithoutCallingRmg() {
+        preload();
 
-        assertThrows(NagraException.class, this::preload);
-        assertDoesNotThrow(this::preload);
+        ArgumentCaptor<AdmBundledAccountRequest> captor =
+                ArgumentCaptor.forClass(AdmBundledAccountRequest.class);
 
-        verify(adm, times(2)).createAccount(eq(SOURCE), any(AdmAccountRequest.class));
-        verify(rmg, times(2)).createEntitlement(eq(SOURCE), any(RmgEntitlementRequest.class));
-    }
+        verify(adm).createBundledAccount(
+                eq(SOURCE),
+                eq(SN),
+                captor.capture()
+        );
 
-    @Test
-    void verifiesEntitlementWhenItsCreationWasAlreadyCompleted() {
-        doThrow(new NagraException(409, "Duplicate entitlement"))
-                .when(rmg).createEntitlement(eq(SOURCE), any(RmgEntitlementRequest.class));
-        when(rmg.getEntitlementsByAccountId(SOURCE, SN)).thenReturn(entitlement("22"));
+        AdmBundledAccountRequest request = captor.getValue();
 
-        assertDoesNotThrow(this::preload);
-        verify(rmg).getEntitlementsByAccountId(SOURCE, SN);
-    }
+        assertEquals(SN + "_TivuHD", request.id());
+        assertEquals("ACTIVE", request.status());
+        assertEquals(1, request.getDevices().size());
 
-    @Test
-    void rejectsDuplicateEntitlementWithAnotherProduct() {
-        doThrow(new NagraException(409, "Duplicate entitlement"))
-                .when(rmg).createEntitlement(eq(SOURCE), any(RmgEntitlementRequest.class));
-        when(rmg.getEntitlementsByAccountId(SOURCE, SN)).thenReturn(entitlement("23"));
+        assertEquals(
+                SN + "_TivuHD",
+                request.getDevices().get(0).id()
+        );
+        assertEquals(
+                "DISABLED",
+                request.getDevices().get(0).status()
+        );
+        assertEquals(
+                UA,
+                request.getDevices().get(0).smartCardId()
+        );
+        assertEquals(
+                SN + "_TivuHD",
+                request.getDevices().get(0).accountUid()
+        );
 
-        IllegalStateException exception = assertThrows(IllegalStateException.class, this::preload);
-        org.junit.jupiter.api.Assertions.assertTrue(exception.getMessage().contains("productId expected 22, got 23"));
-    }
-
-    @Test
-    void doesNotIgnoreUnidentifiedAccountConflict() {
-        NagraException conflict = new NagraException(409, "Other conflict");
-        doThrow(conflict).when(adm)
-                .createAccount(eq(SOURCE), any(AdmAccountRequest.class));
-
-        assertThrows(NagraException.class, this::preload);
+        verifyNoMoreInteractions(adm);
         verifyNoInteractions(rmg);
     }
 
     @Test
-    void doesNotMarkPreloadCompleteOnRmgFailure() {
-        doThrow(new NagraException(null, "timeout")).when(rmg)
-                .createEntitlement(eq(SOURCE), any(RmgEntitlementRequest.class));
-
-        assertThrows(NagraException.class, this::preload);
+    void shouldPropagateBundledFailureWithoutCallingRmg() {
+        assertPreloadFailureIsPropagated(
+                new NagraException(503, "Service unavailable")
+        );
     }
 
-    private NagraEntitlementResponse entitlement(String productId) {
-        return new NagraEntitlementResponse(
-                SN + "_TivuHD", SN, productId, "SUBSCRIBED", "ABSOLUTE",
-                "SUBSCRIPTION", from, until
+    @Test
+    void shouldNotTreatDuplicateAccountAsSuccessfulPreload() {
+        assertPreloadFailureIsPropagated(
+                new NagraException(409, "Account already exists")
         );
+    }
+
+    @Test
+    void shouldNotReportSuccessWhenIntegrationIsDisabled() {
+        properties.setEnabled(false);
+
+        NagraException failure =
+                assertThrows(NagraException.class, this::preload);
+
+        assertEquals(
+                NagraException.FailureType.INTEGRATION_DISABLED,
+                failure.getFailureType()
+        );
+
+        verifyNoInteractions(adm, rmg);
+    }
+
+    private void assertPreloadFailureIsPropagated(
+            NagraException expected
+    ) {
+        doThrow(expected)
+                .when(adm)
+                .createBundledAccount(
+                        eq(SOURCE),
+                        eq(SN),
+                        any(AdmBundledAccountRequest.class)
+                );
+
+        NagraException actual =
+                assertThrows(NagraException.class, this::preload);
+
+        assertSame(expected, actual);
+
+        verify(adm).createBundledAccount(
+                eq(SOURCE),
+                eq(SN),
+                any(AdmBundledAccountRequest.class)
+        );
+
+        verifyNoMoreInteractions(adm);
+        verifyNoInteractions(rmg);
     }
 }

@@ -9,7 +9,8 @@ public class NagraException extends RuntimeException {
     public enum FailureType {
         HTTP_ERROR,
         NETWORK_ERROR,
-        INVALID_RESPONSE
+        INVALID_RESPONSE,
+        INTEGRATION_DISABLED
     }
 
     private final Integer httpStatus;

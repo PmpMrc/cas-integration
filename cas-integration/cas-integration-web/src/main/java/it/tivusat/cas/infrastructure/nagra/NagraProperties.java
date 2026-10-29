@@ -91,11 +91,13 @@ public class NagraProperties {
     public static class Paths {
 
         private String createAccount;
+        private String createBundledAccount;
         private String createEntitlement;
         private String createDevice;
         private String updateDevice;
         private String getDevice;
         private String getEntitlements;
+
 
         public String getCreateAccount() {
             return createAccount;
@@ -168,5 +170,11 @@ public class NagraProperties {
         public void setGetEntitlements(String getEntitlements) {
             this.getEntitlements = getEntitlements;
         }
+
+        public String getCreateBundledAccount() { return createBundledAccount; }
+
+        public String createBundledAccount() { return createBundledAccount; }
+
+        public void setCreateBundledAccount(String createBundledAccount) { this.createBundledAccount = createBundledAccount; }
     }
 }

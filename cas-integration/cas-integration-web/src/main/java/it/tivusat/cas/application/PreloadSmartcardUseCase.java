@@ -31,24 +31,30 @@ public class PreloadSmartcardUseCase {
 
     public SmartcardResponse preload(PreloadSmartcardRequest request) {
         smartcardValidator.validate(request.sn());
+
         if (!"22".equals(request.productId())) {
             throw new IllegalArgumentException("productId must be 22");
+        }
+
+        if (request.smartcardType() == null) {
+            throw new IllegalArgumentException("smartcardType is required");
+        }
+
+        if (request.source() == null) {
+            throw new IllegalArgumentException("source is required");
         }
 
         String ua = smartcardValidator.extractUa(request.sn());
         uaRangeClassifier.validateRestSupported(ua);
 
-        Instant validityFrom = Instant.now().truncatedTo(ChronoUnit.SECONDS);
-        Instant expiryDate = expiryAfterFourYears(validityFrom);
-
         nagraSmartcardGateway.preloadSmartcard(
                 request.sn(),
+                ua,
                 request.smartcardType(),
-                request.source(),
-                request.productId(),
-                validityFrom,
-                expiryDate
+                request.source()
         );
+
+        Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
 
         return new SmartcardResponse(
                 request.sn(),
@@ -57,13 +63,13 @@ public class PreloadSmartcardUseCase {
                 request.source(),
                 SmartcardStatus.PRELOADED,
                 true,
-                false,
-                request.sn() + "_" + request.smartcardType().getNagraType(),
-                request.productId(),
+                true,
                 null,
-                expiryDate,
-                validityFrom,
-                Instant.now()
+                null,
+                null,
+                null,
+                now,
+                now
         );
     }
 
