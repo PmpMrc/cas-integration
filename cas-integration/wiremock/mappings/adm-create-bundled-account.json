@@ -1,0 +1,47 @@
+{
+  "name": "Preload bundled - physical TivuHD",
+  "request": {
+    "method": "POST",
+    "url": "/adm/v1/bundled/accounts",
+    "headers": {
+      "Content-Type": {
+        "contains": "application/json"
+      },
+      "nv-source-id": {
+        "equalTo": "1000"
+      },
+      "nv-broadcast-mode": {
+        "equalTo": "W"
+      }
+    },
+    "bodyPatterns": [
+      {
+        "equalToJson": {
+          "_id": "109687603246_TivuHD",
+          "status": "ACTIVE",
+          "billingAddress": [],
+          "suspensionMode": "MOP",
+          "devices": [
+            {
+              "_id": "109687603246_TivuHD",
+              "status": "DISABLED",
+              "smartCardId": "1096876032",
+              "accountUid": "109687603246_TivuHD"
+            }
+          ]
+        },
+        "ignoreArrayOrder": false,
+        "ignoreExtraElements": false
+      }
+    ]
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "result": "Bundled account created"
+    }
+  }
+}
