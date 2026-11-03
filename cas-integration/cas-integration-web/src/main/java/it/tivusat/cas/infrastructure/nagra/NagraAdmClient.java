@@ -6,6 +6,7 @@ import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountRequest;
 import it.tivusat.cas.infrastructure.nagra.dto.AdmDeviceRequest;
 import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
 import it.tivusat.cas.infrastructure.nagra.dto.AdmBundledAccountRequest;
+import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountStatusRequest;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 
@@ -134,6 +135,23 @@ public class NagraAdmClient {
                 "W",
                 AdmDeviceRequest.enableExistingDevice(),
                 deviceId
+        );
+    }
+
+    public void refreshAccount(
+            SmartcardSource source,
+            String sn,
+            String accountId
+    ) {
+        executor.execute(
+                NagraOperation.ADM_REFRESH_ACCOUNT,
+                sn,
+                HttpMethod.PUT,
+                properties.paths().updateAccount(),
+                source,
+                "1",
+                AdmAccountStatusRequest.active(),
+                accountId
         );
     }
 }

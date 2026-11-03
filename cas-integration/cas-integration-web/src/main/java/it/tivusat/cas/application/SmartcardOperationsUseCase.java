@@ -82,20 +82,45 @@ public class SmartcardOperationsUseCase {
         );
     }
 
-    public SmartcardResponse refresh(String sn, ActivateSmartcardRequest request) {
+    public SmartcardResponse refresh(
+            String sn,
+            ActivateSmartcardRequest request
+    ) {
         String ua = validateSnAndExtractUa(sn);
-        validateCaSnIfRequired(request.smartcardType(), request.caSn());
 
-        nagraSmartcardGateway.refreshSmartcard(sn, ua, request.source(), request.caSn());
+        if (request == null) {
+            throw new IllegalArgumentException("request is required");
+        }
+        if (request.source() == null) {
+            throw new IllegalArgumentException("source is required");
+        }
 
-        return baseResponse(
+        SmartcardType smartcardType =
+                resolveRefreshSmartcardType(sn, request.smartcardType());
+
+        nagraSmartcardGateway.refreshSmartcard(
+                sn,
+                smartcardType,
+                request.source()
+        );
+
+        Instant now = Instant.now()
+                .truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+
+        return new SmartcardResponse(
                 sn,
                 ua,
-                request.smartcardType(),
+                smartcardType,
                 request.source(),
                 SmartcardStatus.ENABLED,
                 true,
-                request.caSn()
+                true,
+                null,
+                null,
+                null,
+                null,
+                now,
+                now
         );
     }
 
@@ -195,6 +220,21 @@ public class SmartcardOperationsUseCase {
                 && (caSn == null || caSn.trim().isEmpty())) {
             throw new IllegalArgumentException("caSn is required for TIVU_HD_PAIRING smartcards");
         }
+    }
+
+    private SmartcardType resolveRefreshSmartcardType(
+            String sn,
+            SmartcardType requestedType
+    ) {
+        if (requestedType == null) {
+            throw new IllegalArgumentException(
+                    "smartcardType is required for refresh of smartcard "
+                            + sn
+                            + "; Salesforce lookup is not available yet"
+            );
+        }
+
+        return requestedType;
     }
 
     private SmartcardResponse baseResponse(

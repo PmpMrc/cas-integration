@@ -97,6 +97,7 @@ public class NagraProperties {
         private String updateDevice;
         private String getDevice;
         private String getEntitlements;
+        private String updateAccount;
 
 
         public String getCreateAccount() {
@@ -176,5 +177,11 @@ public class NagraProperties {
         public String createBundledAccount() { return createBundledAccount; }
 
         public void setCreateBundledAccount(String createBundledAccount) { this.createBundledAccount = createBundledAccount; }
+
+        public String getUpdateAccount() { return updateAccount; }
+
+        public String updateAccount() { return updateAccount; }
+
+        public void setUpdateAccount(String updateAccount) { this.updateAccount = updateAccount; }
     }
 }

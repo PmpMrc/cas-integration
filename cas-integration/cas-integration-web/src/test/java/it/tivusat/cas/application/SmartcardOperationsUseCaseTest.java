@@ -139,13 +139,20 @@ class SmartcardOperationsUseCaseTest {
 
         SmartcardResponse response = useCase.refresh(SN, request);
 
+        assertEquals(SN, response.getSn());
+        assertEquals(UA, response.getUa());
         assertEquals(SmartcardStatus.ENABLED, response.getStatus());
+        assertEquals(SmartcardType.TIVU_HD, response.getSmartcardType());
+
+        org.junit.jupiter.api.Assertions.assertNull(response.getEntitlementId());
+        org.junit.jupiter.api.Assertions.assertNull(response.getProductId());
+        org.junit.jupiter.api.Assertions.assertNull(response.getCaSn());
+        org.junit.jupiter.api.Assertions.assertNull(response.getExpiryDate());
 
         verify(nagraSmartcardGateway).refreshSmartcard(
-                eq(SN),
-                eq(UA),
-                eq(SmartcardSource.PHYSICAL),
-                eq((String) null)
+                SN,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL
         );
     }
 
@@ -234,5 +241,67 @@ class SmartcardOperationsUseCaseTest {
         });
 
         verifyNoInteractions(nagraSmartcardGateway);
+    }
+
+    @Test
+    void refreshShouldRejectMissingTypeBeforeCallingNagra() {
+        ActivateSmartcardRequest request = new ActivateSmartcardRequest(
+                SmartcardSource.PHYSICAL,
+                null,
+                null
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> useCase.refresh(SN, request)
+        );
+
+        verifyNoInteractions(nagraSmartcardGateway);
+    }
+
+    @Test
+    void refreshShouldNotRequireCaSnForPairingType() {
+        ActivateSmartcardRequest request = new ActivateSmartcardRequest(
+                SmartcardSource.PHYSICAL,
+                SmartcardType.TIVU_HD_PAIRING,
+                null
+        );
+
+        useCase.refresh(SN, request);
+
+        verify(nagraSmartcardGateway).refreshSmartcard(
+                SN,
+                SmartcardType.TIVU_HD_PAIRING,
+                SmartcardSource.PHYSICAL
+        );
+    }
+
+    @Test
+    void refreshShouldPropagateNagraFailure() {
+        ActivateSmartcardRequest request = new ActivateSmartcardRequest(
+                SmartcardSource.PHYSICAL,
+                SmartcardType.TIVU_HD,
+                null
+        );
+
+        NagraException failure = new NagraException(
+                503,
+                "Simulated ADM unavailable"
+        );
+
+        org.mockito.Mockito.doThrow(failure)
+                .when(nagraSmartcardGateway)
+                .refreshSmartcard(
+                        SN,
+                        SmartcardType.TIVU_HD,
+                        SmartcardSource.PHYSICAL
+                );
+
+        NagraException actual = assertThrows(
+                NagraException.class,
+                () -> useCase.refresh(SN, request)
+        );
+
+        org.junit.jupiter.api.Assertions.assertSame(failure, actual);
     }
 }

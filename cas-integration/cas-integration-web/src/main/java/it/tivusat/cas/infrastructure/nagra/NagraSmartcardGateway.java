@@ -93,16 +93,35 @@ public class NagraSmartcardGateway {
         }
     }
 
-    public void refreshSmartcard(String sn, String ua, SmartcardSource source, String caSn) {
-        if (!properties.enabled()) {
-            log.warn("NAGRA integration disabled. Skipping refresh for smartcard {}", sn);
-            return;
+    public void refreshSmartcard(
+            String sn,
+            SmartcardType smartcardType,
+            SmartcardSource source
+    ) {
+        if (smartcardType == null) {
+            throw new IllegalArgumentException("smartcardType is required");
+        }
+        if (source == null) {
+            throw new IllegalArgumentException("source is required");
         }
 
-        nagraAdmClient.updateDeviceForRefresh(
+        if (!properties.enabled()) {
+            throw new NagraException(
+                    null,
+                    "NAGRA integration disabled; refresh was not executed",
+                    null,
+                    NagraOperation.ADM_REFRESH_ACCOUNT,
+                    properties.paths().updateAccount(),
+                    NagraException.FailureType.INTEGRATION_DISABLED
+            );
+        }
+
+        String accountId = sn + "_" + smartcardType.getNagraType();
+
+        nagraAdmClient.refreshAccount(
                 source,
                 sn,
-                AdmDeviceRequest.refresh(sn, ua, caSn)
+                accountId
         );
     }
 
