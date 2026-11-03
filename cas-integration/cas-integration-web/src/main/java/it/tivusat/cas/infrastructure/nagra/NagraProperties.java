@@ -98,6 +98,7 @@ public class NagraProperties {
         private String getDevice;
         private String getEntitlements;
         private String updateAccount;
+        private String deleteEntitlement;
 
 
         public String getCreateAccount() {
@@ -183,5 +184,12 @@ public class NagraProperties {
         public String updateAccount() { return updateAccount; }
 
         public void setUpdateAccount(String updateAccount) { this.updateAccount = updateAccount; }
+
+        public String getDeleteEntitlement() { return deleteEntitlement; }
+
+        public String deleteEntitlement() { return deleteEntitlement; }
+
+        public void setDeleteEntitlement(String deleteEntitlement) { this.deleteEntitlement = deleteEntitlement; }
+
     }
 }

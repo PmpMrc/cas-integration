@@ -12,3 +12,4 @@ nagra:
     get-device: "/adm/v1/devices/{deviceId}"
     get-entitlements: "/rmg/v1/operator/entitlements"
     update-account: "/adm/v1/accounts/{accountId}"
+    delete-entitlement: "/rmg/v1/operator/entitlements/{entitlementId}"

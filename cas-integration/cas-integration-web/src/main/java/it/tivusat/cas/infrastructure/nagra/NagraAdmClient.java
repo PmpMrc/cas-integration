@@ -154,4 +154,21 @@ public class NagraAdmClient {
                 accountId
         );
     }
+
+    public void suspendAccount(
+            SmartcardSource source,
+            String sn,
+            String accountId
+    ) {
+        executor.execute(
+                NagraOperation.ADM_SUSPEND_ACCOUNT,
+                sn,
+                HttpMethod.PUT,
+                properties.paths().updateAccount(),
+                source,
+                "N",
+                AdmAccountStatusRequest.suspended(),
+                accountId
+        );
+    }
 }

@@ -125,13 +125,49 @@ public class NagraSmartcardGateway {
         );
     }
 
-    public void suspendSmartcard(String sn, String ua, SmartcardSource source) {
-        if (!properties.enabled()) {
-            log.warn("NAGRA integration disabled. Skipping suspend for smartcard {}", sn);
-            return;
+    public void suspendSmartcard(
+            String sn,
+            SmartcardType smartcardType,
+            SmartcardSource source
+    ) {
+        if (smartcardType == null) {
+            throw new IllegalArgumentException("smartcardType is required");
+        }
+        if (source == null) {
+            throw new IllegalArgumentException("source is required");
         }
 
-        nagraAdmClient.suspendDevice(source, sn);
+        if (!properties.enabled()) {
+            throw new NagraException(
+                    null,
+                    "NAGRA integration disabled; suspension was not executed",
+                    null,
+                    NagraOperation.ADM_SUSPEND_ACCOUNT,
+                    properties.paths().updateAccount(),
+                    NagraException.FailureType.INTEGRATION_DISABLED
+            );
+        }
+
+        String accountId = sn + "_" + smartcardType.getNagraType();
+
+        nagraAdmClient.suspendAccount(
+                source,
+                sn,
+                accountId
+        );
+
+        try {
+            nagraRmgClient.deleteEntitlement(
+                    source,
+                    sn,
+                    accountId
+            );
+        } catch (NagraException exception) {
+            throw new NagraPartialFailureException(
+                    NagraOperation.ADM_SUSPEND_ACCOUNT,
+                    exception
+            );
+        }
     }
 
     public void deleteSmartcard(String sn, SmartcardSource source) {

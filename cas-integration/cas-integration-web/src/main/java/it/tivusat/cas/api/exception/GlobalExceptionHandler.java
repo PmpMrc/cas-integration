@@ -135,9 +135,9 @@ public class GlobalExceptionHandler {
             );
             details.put("automaticRollbackPerformed", "false");
 
-            message = "Activation incomplete: "
+            message = "Operation incomplete: "
                     + partial.getCompletedOperation().name()
-                    + " returned successfully, but the entitlement step failed. "
+                    + " returned successfully, but a subsequent step failed. "
                     + message;
         }
 

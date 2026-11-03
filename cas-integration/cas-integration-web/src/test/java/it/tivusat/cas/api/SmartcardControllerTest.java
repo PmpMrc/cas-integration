@@ -11,6 +11,7 @@ import it.tivusat.cas.domain.SmartcardType;
 import it.tivusat.cas.domain.NagraOperation;
 import it.tivusat.cas.infrastructure.nagra.EntitlementValidationException;
 import it.tivusat.cas.infrastructure.nagra.NagraException;
+import it.tivusat.cas.infrastructure.nagra.NagraPartialFailureException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -148,13 +149,73 @@ class SmartcardControllerTest {
 
     @Test
     void suspendShouldReturnAccepted() throws Exception {
-        when(smartcardOperationsUseCase.suspend(eq(SN), eq(SmartcardSource.PHYSICAL)))
-                .thenReturn(response(SmartcardStatus.DISABLED));
+        when(smartcardOperationsUseCase.suspend(
+                eq(SN),
+                eq(SmartcardSource.PHYSICAL),
+                eq(SmartcardType.TIVU_HD)
+        )).thenReturn(response(SmartcardStatus.DISABLED));
 
         mockMvc.perform(post("/api/v1/smartcards/" + SN + "/suspend")
-                        .param("source", "PHYSICAL"))
+                        .param("source", "PHYSICAL")
+                        .param("smartcardType", "TIVU_HD"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.status", is("DISABLED")));
+
+        org.mockito.Mockito.verify(smartcardOperationsUseCase).suspend(
+                SN,
+                SmartcardSource.PHYSICAL,
+                SmartcardType.TIVU_HD
+        );
+    }
+
+    @Test
+    void suspendWithoutTypeShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/smartcards/" + SN + "/suspend")
+                        .param("source", "PHYSICAL"))
+                .andExpect(status().isBadRequest());
+
+        org.mockito.Mockito.verifyNoInteractions(smartcardOperationsUseCase);
+    }
+
+    @Test
+    void suspendShouldExposePartialFailureDetails() throws Exception {
+        NagraException upstream =
+                new NagraException(
+                        503,
+                        "{\"code\":503,\"message\":\"Simulated RMG unavailable\"}",
+                        null,
+                        NagraOperation.RMG_DELETE_ENTITLEMENT,
+                        "/rmg/v1/operator/entitlements/" + SN + "_TivuHD",
+                        NagraException
+                                .FailureType.HTTP_ERROR
+                );
+
+        when(smartcardOperationsUseCase.suspend(
+                eq(SN),
+                eq(SmartcardSource.PHYSICAL),
+                eq(SmartcardType.TIVU_HD)
+        )).thenThrow(
+                new NagraPartialFailureException(
+                        NagraOperation.ADM_SUSPEND_ACCOUNT,
+                        upstream
+                )
+        );
+
+        mockMvc.perform(post("/api/v1/smartcards/" + SN + "/suspend")
+                        .param("source", "PHYSICAL")
+                        .param("smartcardType", "TIVU_HD"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.error", is("NAGRA_ERROR")))
+                .andExpect(jsonPath(
+                        "$.details.operation",
+                        is("RMG_DELETE_ENTITLEMENT")
+                ))
+                .andExpect(jsonPath("$.details.partialFailure", is("true")))
+                .andExpect(jsonPath(
+                        "$.details.completedOperation",
+                        is("ADM_SUSPEND_ACCOUNT")
+                ))
+                .andExpect(jsonPath("$.details.upstreamHttpStatus", is("503")));
     }
 
     @Test

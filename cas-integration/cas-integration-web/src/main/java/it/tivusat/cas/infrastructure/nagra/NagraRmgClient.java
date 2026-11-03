@@ -83,6 +83,23 @@ public class NagraRmgClient {
 
     }
 
+    public void deleteEntitlement(
+            SmartcardSource source,
+            String sn,
+            String entitlementId
+    ) {
+        executor.execute(
+                NagraOperation.RMG_DELETE_ENTITLEMENT,
+                sn,
+                HttpMethod.DELETE,
+                properties.paths().deleteEntitlement(),
+                source,
+                "N",
+                null,
+                entitlementId
+        );
+    }
+
     private String encodeQueryParam(String value) {
         return UriUtils.encodeQueryParam(value, java.nio.charset.StandardCharsets.UTF_8);
     }

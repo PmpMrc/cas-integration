@@ -158,15 +158,38 @@ class SmartcardOperationsUseCaseTest {
 
     @Test
     void shouldSuspendSmartcard() {
-        SmartcardResponse response = useCase.suspend(SN, SmartcardSource.PHYSICAL);
+        SmartcardResponse response = useCase.suspend(
+                SN,
+                SmartcardSource.PHYSICAL,
+                SmartcardType.TIVU_HD
+        );
 
         assertEquals(SmartcardStatus.DISABLED, response.getStatus());
+        assertEquals(SmartcardType.TIVU_HD, response.getSmartcardType());
+
+        org.junit.jupiter.api.Assertions.assertNull(response.getEntitlementId());
+        org.junit.jupiter.api.Assertions.assertNull(response.getProductId());
+        org.junit.jupiter.api.Assertions.assertNull(response.getExpiryDate());
 
         verify(nagraSmartcardGateway).suspendSmartcard(
-                eq(SN),
-                eq(UA),
-                eq(SmartcardSource.PHYSICAL)
+                SN,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL
         );
+    }
+
+    @Test
+    void suspendShouldRejectMissingTypeBeforeCallingNagra() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> useCase.suspend(
+                        SN,
+                        SmartcardSource.PHYSICAL,
+                        null
+                )
+        );
+
+        verifyNoInteractions(nagraSmartcardGateway);
     }
 
     @Test

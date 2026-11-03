@@ -342,6 +342,39 @@ class NagraAdmClientTest {
         singleInvocation();
     }
 
+    @Test
+    void suspendAccountShouldUseTypedAccountIdAndSuspendedStatusOnly()
+            throws Exception {
+
+        String accountId = SN + "_TivuHD";
+
+        org.mockito.Mockito.when(paths.updateAccount())
+                .thenReturn("/adm/v1/accounts/{accountId}");
+
+        client.suspendAccount(
+                SmartcardSource.PHYSICAL,
+                SN,
+                accountId
+        );
+
+        Object[] args = singleInvocation().getArguments();
+
+        assertEquals(NagraOperation.ADM_SUSPEND_ACCOUNT, args[0]);
+        assertEquals(SN, args[1]);
+        assertEquals(HttpMethod.PUT, args[2]);
+        assertEquals("/adm/v1/accounts/{accountId}", args[3]);
+        assertEquals(SmartcardSource.PHYSICAL, args[4]);
+        assertEquals("N", args[5]);
+
+        assertEquals(
+                objectMapper.readTree("{\"status\":\"SUSPENDED\"}"),
+                objectMapper.valueToTree(args[6])
+        );
+
+        assertEquals(8, args.length);
+        assertEquals(accountId, args[7]);
+    }
+
     private Invocation singleInvocation() {
         Collection<Invocation> invocations = mockingDetails(restExecutor).getInvocations();
 

@@ -164,6 +164,75 @@ class NagraRmgClientTest {
         assertSame(request, args[6]);
     }
 
+    @Test
+    void deleteEntitlementShouldUseTypedIdAndBroadcastNWithoutBody() {
+        String entitlementId = SN + "_TivuHD";
+
+        org.mockito.Mockito.when(paths.deleteEntitlement())
+                .thenReturn("/rmg/v1/operator/entitlements/{entitlementId}");
+
+        client.deleteEntitlement(
+                SmartcardSource.PHYSICAL,
+                SN,
+                entitlementId
+        );
+
+        Object[] args = singleInvocation().getArguments();
+
+        assertEquals(NagraOperation.RMG_DELETE_ENTITLEMENT, args[0]);
+        assertEquals(SN, args[1]);
+        assertEquals(HttpMethod.DELETE, args[2]);
+        assertEquals(
+                "/rmg/v1/operator/entitlements/{entitlementId}",
+                args[3]
+        );
+        assertEquals(SmartcardSource.PHYSICAL, args[4]);
+        assertEquals("N", args[5]);
+        assertNull(args[6]);
+
+        assertEquals(8, args.length);
+        assertEquals(entitlementId, args[7]);
+    }
+
+    @Test
+    void deleteEntitlementShouldPropagateNagraFailure() {
+        String entitlementId = SN + "_TivuHD";
+
+        org.mockito.Mockito.when(paths.deleteEntitlement())
+                .thenReturn("/rmg/v1/operator/entitlements/{entitlementId}");
+
+        NagraException failure = new NagraException(
+                503,
+                "Simulated RMG unavailable"
+        );
+
+        org.mockito.Mockito.doThrow(failure)
+                .when(restExecutor)
+                .execute(
+                        NagraOperation.RMG_DELETE_ENTITLEMENT,
+                        SN,
+                        HttpMethod.DELETE,
+                        "/rmg/v1/operator/entitlements/{entitlementId}",
+                        SmartcardSource.PHYSICAL,
+                        "N",
+                        null,
+                        entitlementId
+                );
+
+        NagraException actual =
+                org.junit.jupiter.api.Assertions.assertThrows(
+                        NagraException.class,
+                        () -> client.deleteEntitlement(
+                                SmartcardSource.PHYSICAL,
+                                SN,
+                                entitlementId
+                        )
+                );
+
+        assertSame(failure, actual);
+        singleInvocation();
+    }
+
     private Invocation singleInvocation() {
         Collection<Invocation> invocations = mockingDetails(restExecutor).getInvocations();
 

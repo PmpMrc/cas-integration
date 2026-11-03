@@ -67,11 +67,16 @@ public class SmartcardController {
     @PostMapping("/{sn}/suspend")
     public ResponseEntity<SmartcardResponse> suspend(
             @PathVariable("sn") String sn,
-            @RequestParam("source") SmartcardSource source
+            @RequestParam("source") SmartcardSource source,
+            @RequestParam("smartcardType") SmartcardType smartcardType
     ) {
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
-                .body(smartcardOperationsUseCase.suspend(sn, source));
+                .body(smartcardOperationsUseCase.suspend(
+                        sn,
+                        source,
+                        smartcardType
+                ));
     }
 
     @DeleteMapping("/{sn}")

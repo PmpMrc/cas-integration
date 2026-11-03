@@ -12,6 +12,10 @@ public final class AdmAccountStatusRequest {
         return new AdmAccountStatusRequest("ACTIVE");
     }
 
+    public static AdmAccountStatusRequest suspended() {
+        return new AdmAccountStatusRequest("SUSPENDED");
+    }
+
     public String getStatus() {
         return status;
     }

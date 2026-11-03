@@ -124,19 +124,43 @@ public class SmartcardOperationsUseCase {
         );
     }
 
-    public SmartcardResponse suspend(String sn, SmartcardSource source) {
+    public SmartcardResponse suspend(
+            String sn,
+            SmartcardSource source,
+            SmartcardType smartcardType
+    ) {
         String ua = validateSnAndExtractUa(sn);
 
-        nagraSmartcardGateway.suspendSmartcard(sn, ua, source);
+        if (source == null) {
+            throw new IllegalArgumentException("source is required");
+        }
+        if (smartcardType == null) {
+            throw new IllegalArgumentException("smartcardType is required");
+        }
 
-        return baseResponse(
+        nagraSmartcardGateway.suspendSmartcard(
+                sn,
+                smartcardType,
+                source
+        );
+
+        Instant now = Instant.now()
+                .truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+
+        return new SmartcardResponse(
                 sn,
                 ua,
-                null,
+                smartcardType,
                 source,
                 SmartcardStatus.DISABLED,
                 true,
-                null
+                true,
+                null,
+                null,
+                null,
+                null,
+                now,
+                now
         );
     }
 
