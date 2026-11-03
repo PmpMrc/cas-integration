@@ -236,6 +236,39 @@ class NagraAdmClientTest {
         assertSame(request, args[6]);
     }
 
+    @Test
+    void activateDeviceShouldUpdateExistingDeviceWithStatusOnly()
+            throws Exception {
+
+        String deviceId = SN + "_TivuHD";
+
+        org.mockito.Mockito.when(paths.updateDevice())
+                .thenReturn("/adm/v1/devices/{deviceId}");
+
+        client.activateDevice(
+                SmartcardSource.PHYSICAL,
+                SN,
+                deviceId
+        );
+
+        Object[] args = singleInvocation().getArguments();
+
+        assertEquals(NagraOperation.ADM_ACTIVATE_DEVICE, args[0]);
+        assertEquals(SN, args[1]);
+        assertEquals(HttpMethod.PUT, args[2]);
+        assertEquals("/adm/v1/devices/{deviceId}", args[3]);
+        assertEquals(SmartcardSource.PHYSICAL, args[4]);
+        assertEquals("W", args[5]);
+
+        assertEquals(
+                objectMapper.readTree("{\"status\":\"ENABLED\"}"),
+                objectMapper.valueToTree(args[6])
+        );
+
+        assertEquals(8, args.length);
+        assertEquals(deviceId, args[7]);
+    }
+
     private Invocation singleInvocation() {
         Collection<Invocation> invocations = mockingDetails(restExecutor).getInvocations();
 

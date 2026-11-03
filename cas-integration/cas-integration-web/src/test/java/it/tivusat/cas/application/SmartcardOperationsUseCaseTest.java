@@ -10,6 +10,8 @@ import it.tivusat.cas.infrastructure.nagra.NagraException;
 import it.tivusat.cas.infrastructure.nagra.NagraSmartcardStatusSnapshot;
 import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
 import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
+import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
+import org.mockito.ArgumentCaptor;
 import it.tivusat.cas.domain.SmartcardType;
 import it.tivusat.cas.domain.SmartcardValidator;
 import it.tivusat.cas.domain.UaRangeClassifier;
@@ -63,12 +65,23 @@ class SmartcardOperationsUseCaseTest {
         assertEquals(SmartcardSource.PHYSICAL, response.getSource());
         assertEquals(SmartcardType.TIVU_HD, response.getSmartcardType());
 
+        ArgumentCaptor<RmgEntitlementRequest> captor =
+                ArgumentCaptor.forClass(RmgEntitlementRequest.class);
+
         verify(nagraSmartcardGateway).activateSmartcard(
                 eq(SN),
-                eq(UA),
                 eq(SmartcardSource.PHYSICAL),
-                eq((String) null)
+                captor.capture()
         );
+
+        RmgEntitlementRequest sent = captor.getValue();
+
+        assertEquals(SN + "_TivuHD", sent.id());
+        assertEquals(SN + "_TivuHD", sent.accountId());
+        assertEquals("22", sent.productId());
+        assertEquals(sent.id(), response.getEntitlementId());
+        assertEquals(sent.productId(), response.getProductId());
+        assertEquals(sent.expiryDate(), response.getExpiryDate());
     }
 
     @Test
@@ -90,7 +103,7 @@ class SmartcardOperationsUseCaseTest {
     }
 
     @Test
-    void shouldActivatePairingWithCaSn() {
+    void shouldUsePairingTypeForActivationWithoutEchoingUnverifiedCaSn() {
         ActivateSmartcardRequest request = new ActivateSmartcardRequest(
                 SmartcardSource.PHYSICAL,
                 SmartcardType.TIVU_HD_PAIRING,
@@ -99,15 +112,21 @@ class SmartcardOperationsUseCaseTest {
 
         SmartcardResponse response = useCase.activate(SN, request);
 
-        assertEquals(SmartcardStatus.ENABLED, response.getStatus());
-        assertEquals("1234567890", response.getCaSn());
+        ArgumentCaptor<RmgEntitlementRequest> captor =
+                ArgumentCaptor.forClass(RmgEntitlementRequest.class);
 
         verify(nagraSmartcardGateway).activateSmartcard(
                 eq(SN),
-                eq(UA),
                 eq(SmartcardSource.PHYSICAL),
-                eq("1234567890")
+                captor.capture()
         );
+
+        assertEquals(
+                SN + "_" + SmartcardType.TIVU_HD_PAIRING.getNagraType(),
+                captor.getValue().accountId()
+        );
+        assertEquals(SmartcardStatus.ENABLED, response.getStatus());
+        org.junit.jupiter.api.Assertions.assertNull(response.getCaSn());
     }
 
     @Test

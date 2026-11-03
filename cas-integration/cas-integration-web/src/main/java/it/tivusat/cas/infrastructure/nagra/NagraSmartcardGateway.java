@@ -1,5 +1,6 @@
 package it.tivusat.cas.infrastructure.nagra;
 
+import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
 import it.tivusat.cas.domain.NagraOperation;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardType;
@@ -58,22 +59,38 @@ public class NagraSmartcardGateway {
 
     public void activateSmartcard(
             String sn,
-            String ua,
             SmartcardSource source,
-            String caSn
+            RmgEntitlementRequest entitlement
     ) {
         if (!properties.enabled()) {
-            log.warn(
-                    "NAGRA integration disabled. Skipping activation for smartcard {}",
-                    sn
+            throw new NagraException(
+                    null,
+                    "NAGRA integration disabled; activation was not executed",
+                    null,
+                    NagraOperation.ADM_ACTIVATE_DEVICE,
+                    properties.paths().updateDevice(),
+                    NagraException.FailureType.INTEGRATION_DISABLED
             );
-            return;
         }
 
-        nagraAdmClient.createDevice(
+        nagraAdmClient.activateDevice(
                 source,
-                AdmDeviceRequest.activate(sn, ua, caSn)
+                sn,
+                entitlement.accountId()
         );
+
+        try {
+            nagraRmgClient.createEntitlement(
+                    source,
+                    sn,
+                    entitlement
+            );
+        } catch (NagraException exception) {
+            throw new NagraPartialFailureException(
+                    NagraOperation.ADM_ACTIVATE_DEVICE,
+                    exception
+            );
+        }
     }
 
     public void refreshSmartcard(String sn, String ua, SmartcardSource source, String caSn) {

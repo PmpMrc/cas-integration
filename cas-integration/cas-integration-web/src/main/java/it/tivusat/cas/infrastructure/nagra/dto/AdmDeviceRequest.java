@@ -37,6 +37,9 @@ public class AdmDeviceRequest {
         return new AdmDeviceRequest(null, "DISABLED", null, null, null);
     }
 
+    public static AdmDeviceRequest enableExistingDevice() { return new AdmDeviceRequest(
+            null,"ENABLED", null, null, null);
+    }
 
     public String getId() {
         return id;

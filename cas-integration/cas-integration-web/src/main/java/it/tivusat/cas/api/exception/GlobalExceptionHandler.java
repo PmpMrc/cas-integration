@@ -7,6 +7,7 @@ import it.tivusat.cas.api.dto.ErrorResponse;
 import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
 import it.tivusat.cas.infrastructure.nagra.NagraException;
 import it.tivusat.cas.infrastructure.nagra.EntitlementValidationException;
+import it.tivusat.cas.infrastructure.nagra.NagraPartialFailureException;
 import it.tivusat.cas.domain.exception.UnsupportedSmartcardRangeException;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.ConstraintViolationException;
@@ -121,6 +122,23 @@ public class GlobalExceptionHandler {
             status = HttpStatus.SERVICE_UNAVAILABLE;
             message = "NAGRA could not be reached during " + operation
                     + ": " + summarize(ex.getResponseBody());
+        }
+
+        if (ex instanceof NagraPartialFailureException) {
+            NagraPartialFailureException partial =
+                    (NagraPartialFailureException) ex;
+
+            details.put("partialFailure", "true");
+            details.put(
+                    "completedOperation",
+                    partial.getCompletedOperation().name()
+            );
+            details.put("automaticRollbackPerformed", "false");
+
+            message = "Activation incomplete: "
+                    + partial.getCompletedOperation().name()
+                    + " returned successfully, but the entitlement step failed. "
+                    + message;
         }
 
         return ResponseEntity.status(status).body(ErrorResponse.withDetails(

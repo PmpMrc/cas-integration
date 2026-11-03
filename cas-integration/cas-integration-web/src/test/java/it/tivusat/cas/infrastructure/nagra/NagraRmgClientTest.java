@@ -137,6 +137,33 @@ class NagraRmgClientTest {
         assertEquals(NagraEntitlementResponse.class, args[7]);
     }
 
+    @Test
+    void activationEntitlementShouldUseBroadcastNAndOriginalSnForLogging() {
+        RmgEntitlementRequest request = RmgEntitlementRequest.subscription(
+                SN + "_TivuHD",
+                SN + "_TivuHD",
+                "22",
+                Instant.parse("2026-01-01T00:00:00Z"),
+                Instant.parse("2030-01-01T00:00:00Z")
+        );
+
+        client.createEntitlement(
+                SmartcardSource.PHYSICAL,
+                SN,
+                request
+        );
+
+        Object[] args = singleInvocation().getArguments();
+
+        assertEquals(NagraOperation.RMG_CREATE_ENTITLEMENT, args[0]);
+        assertEquals(SN, args[1]);
+        assertEquals(HttpMethod.POST, args[2]);
+        assertEquals("/rmg/v1/operator/entitlements", args[3]);
+        assertEquals(SmartcardSource.PHYSICAL, args[4]);
+        assertEquals("N", args[5]);
+        assertSame(request, args[6]);
+    }
+
     private Invocation singleInvocation() {
         Collection<Invocation> invocations = mockingDetails(restExecutor).getInvocations();
 

@@ -1,0 +1,55 @@
+{
+  "name": "Activation - create physical TivuHD entitlement",
+  "request": {
+    "method": "POST",
+    "url": "/rmg/v1/operator/entitlements",
+    "headers": {
+      "Content-Type": {
+        "contains": "application/json"
+      },
+      "nv-source-id": {
+        "equalTo": "1000"
+      },
+      "nv-broadcast-mode": {
+        "equalTo": "N"
+      }
+    },
+    "bodyPatterns": [
+      {
+        "equalToJson": {
+          "_id": "109687603246_TivuHD",
+          "accountId": "109687603246_TivuHD",
+          "productId": "22",
+          "status": "SUBSCRIBED",
+          "validityType": "ABSOLUTE",
+          "productType": "SUBSCRIPTION",
+          "validFrom": "${json-unit.any-string}",
+          "expiryDate": "${json-unit.any-string}"
+        },
+        "ignoreArrayOrder": false,
+        "ignoreExtraElements": false
+      },
+      {
+        "matchesJsonPath": {
+          "expression": "$.validFrom",
+          "matches": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        }
+      },
+      {
+        "matchesJsonPath": {
+          "expression": "$.expiryDate",
+          "matches": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        }
+      }
+    ]
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "result": "Entitlement created"
+    }
+  }
+}

@@ -39,6 +39,22 @@ public class NagraRmgClient {
         );
     }
 
+    public void createEntitlement(
+            SmartcardSource source,
+            String sn,
+            RmgEntitlementRequest request
+    ) {
+        executor.execute(
+                NagraOperation.RMG_CREATE_ENTITLEMENT,
+                sn,
+                HttpMethod.POST,
+                properties.paths().createEntitlement(),
+                source,
+                "N",
+                request
+        );
+    }
+
     public NagraEntitlementResponse getEntitlementsByAccountId(
             SmartcardSource source,
             String sn

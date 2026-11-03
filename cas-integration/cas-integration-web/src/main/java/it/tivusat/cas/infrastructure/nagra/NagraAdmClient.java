@@ -119,4 +119,21 @@ public class NagraAdmClient {
                 request
         );
     }
+
+    public void activateDevice(
+            SmartcardSource source,
+            String sn,
+            String deviceId
+    ) {
+        executor.execute(
+                NagraOperation.ADM_ACTIVATE_DEVICE,
+                sn,
+                HttpMethod.PUT,
+                properties.paths().updateDevice(),
+                source,
+                "W",
+                AdmDeviceRequest.enableExistingDevice(),
+                deviceId
+        );
+    }
 }

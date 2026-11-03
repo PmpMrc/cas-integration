@@ -1,0 +1,36 @@
+{
+  "name": "Activation - enable existing physical TivuHD device",
+  "request": {
+    "method": "PUT",
+    "url": "/adm/v1/devices/109687603246_TivuHD",
+    "headers": {
+      "Content-Type": {
+        "contains": "application/json"
+      },
+      "nv-source-id": {
+        "equalTo": "1000"
+      },
+      "nv-broadcast-mode": {
+        "equalTo": "W"
+      }
+    },
+    "bodyPatterns": [
+      {
+        "equalToJson": {
+          "status": "ENABLED"
+        },
+        "ignoreArrayOrder": false,
+        "ignoreExtraElements": false
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "result": "Device enabled"
+    }
+  }
+}
