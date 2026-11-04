@@ -171,4 +171,21 @@ public class NagraAdmClient {
                 accountId
         );
     }
+
+    public void reactivateAccount(
+            SmartcardSource source,
+            String sn,
+            String accountId
+    ) {
+        executor.execute(
+                NagraOperation.ADM_REACTIVATE_ACCOUNT,
+                sn,
+                HttpMethod.PUT,
+                properties.paths().updateAccount(),
+                source,
+                "N",
+                AdmAccountStatusRequest.active(),
+                accountId
+        );
+    }
 }

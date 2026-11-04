@@ -283,6 +283,59 @@ class SmartcardControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void reactivateShouldReturnAccepted() throws Exception {
+        when(smartcardOperationsUseCase.reactivate(eq(SN), any()))
+                .thenReturn(response(SmartcardStatus.ENABLED));
+
+        mockMvc.perform(post("/api/v1/smartcards/" + SN + "/reactivate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                "{\"source\":\"PHYSICAL\","
+                                        + "\"smartcardType\":\"TIVU_HD\"}"
+                        ))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status", is("ENABLED")));
+
+        org.mockito.ArgumentCaptor<
+                it.tivusat.cas.api.dto.ReactivateSmartcardRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(
+                        it.tivusat.cas.api.dto.ReactivateSmartcardRequest.class
+                );
+
+        org.mockito.Mockito.verify(smartcardOperationsUseCase)
+                .reactivate(eq(SN), captor.capture());
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                SmartcardSource.PHYSICAL,
+                captor.getValue().getSource()
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(
+                SmartcardType.TIVU_HD,
+                captor.getValue().getSmartcardType()
+        );
+    }
+
+    @Test
+    void reactivateWithoutTypeShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/smartcards/" + SN + "/reactivate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source\":\"PHYSICAL\"}"))
+                .andExpect(status().isBadRequest());
+
+        org.mockito.Mockito.verifyNoInteractions(smartcardOperationsUseCase);
+    }
+
+    @Test
+    void reactivateWithoutSourceShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/smartcards/" + SN + "/reactivate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"smartcardType\":\"TIVU_HD\"}"))
+                .andExpect(status().isBadRequest());
+
+        org.mockito.Mockito.verifyNoInteractions(smartcardOperationsUseCase);
+    }
+
     private SmartcardResponse response(SmartcardStatus status) {
         return new SmartcardResponse(
                 SN,

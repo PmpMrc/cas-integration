@@ -2,6 +2,7 @@ package it.tivusat.cas.api;
 
 import it.tivusat.cas.api.dto.ActivateSmartcardRequest;
 import it.tivusat.cas.api.dto.PreloadSmartcardRequest;
+import it.tivusat.cas.api.dto.ReactivateSmartcardRequest;
 import it.tivusat.cas.api.dto.SmartcardResponse;
 import it.tivusat.cas.application.PreloadSmartcardUseCase;
 import it.tivusat.cas.application.SmartcardOperationsUseCase;
@@ -79,6 +80,16 @@ public class SmartcardController {
                 ));
     }
 
+    @PostMapping("/{sn}/reactivate")
+    public ResponseEntity<SmartcardResponse> reactivate(
+            @PathVariable("sn") String sn,
+            @Valid @RequestBody ReactivateSmartcardRequest request
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(smartcardOperationsUseCase.reactivate(sn, request));
+    }
+
     @DeleteMapping("/{sn}")
     public ResponseEntity<SmartcardResponse> delete(
             @PathVariable("sn") String sn,
@@ -96,6 +107,8 @@ public class SmartcardController {
     ) {
         return ResponseEntity.ok(smartcardOperationsUseCase.getStatus(sn, source));
     }
+
+
 
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ImportSmartcardsResponse> importSmartcards(

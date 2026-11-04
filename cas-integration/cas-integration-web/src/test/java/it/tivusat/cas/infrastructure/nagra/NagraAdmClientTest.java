@@ -375,6 +375,79 @@ class NagraAdmClientTest {
         assertEquals(accountId, args[7]);
     }
 
+    @Test
+    void reactivateAccountShouldUseTypedAccountIdAndBroadcastN()
+            throws Exception {
+
+        String accountId = SN + "_TivuHD";
+
+        org.mockito.Mockito.when(paths.updateAccount())
+                .thenReturn("/adm/v1/accounts/{accountId}");
+
+        client.reactivateAccount(
+                SmartcardSource.PHYSICAL,
+                SN,
+                accountId
+        );
+
+        Object[] args = singleInvocation().getArguments();
+
+        assertEquals(NagraOperation.ADM_REACTIVATE_ACCOUNT, args[0]);
+        assertEquals(SN, args[1]);
+        assertEquals(HttpMethod.PUT, args[2]);
+        assertEquals("/adm/v1/accounts/{accountId}", args[3]);
+        assertEquals(SmartcardSource.PHYSICAL, args[4]);
+        assertEquals("N", args[5]);
+
+        assertEquals(
+                objectMapper.readTree("{\"status\":\"ACTIVE\"}"),
+                objectMapper.valueToTree(args[6])
+        );
+
+        assertEquals(8, args.length);
+        assertEquals(accountId, args[7]);
+    }
+
+    @Test
+    void reactivateAccountShouldPropagateNagraFailure() {
+        String accountId = SN + "_TivuHD";
+
+        org.mockito.Mockito.when(paths.updateAccount())
+                .thenReturn("/adm/v1/accounts/{accountId}");
+
+        NagraException failure = new NagraException(
+                503,
+                "Simulated ADM unavailable"
+        );
+
+        org.mockito.Mockito.doThrow(failure)
+                .when(restExecutor)
+                .execute(
+                        eq(NagraOperation.ADM_REACTIVATE_ACCOUNT),
+                        eq(SN),
+                        eq(HttpMethod.PUT),
+                        eq("/adm/v1/accounts/{accountId}"),
+                        eq(SmartcardSource.PHYSICAL),
+                        eq("N"),
+                        any(it.tivusat.cas.infrastructure.nagra.dto
+                                .AdmAccountStatusRequest.class),
+                        eq(accountId)
+                );
+
+        NagraException actual =
+                org.junit.jupiter.api.Assertions.assertThrows(
+                        NagraException.class,
+                        () -> client.reactivateAccount(
+                                SmartcardSource.PHYSICAL,
+                                SN,
+                                accountId
+                        )
+                );
+
+        assertSame(failure, actual);
+        singleInvocation();
+    }
+
     private Invocation singleInvocation() {
         Collection<Invocation> invocations = mockingDetails(restExecutor).getInvocations();
 

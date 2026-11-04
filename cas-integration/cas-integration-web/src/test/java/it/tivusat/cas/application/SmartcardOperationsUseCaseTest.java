@@ -1,6 +1,7 @@
 package it.tivusat.cas.application;
 
 import it.tivusat.cas.api.dto.ActivateSmartcardRequest;
+import it.tivusat.cas.api.dto.ReactivateSmartcardRequest;
 import it.tivusat.cas.api.dto.SmartcardResponse;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardStatus;
@@ -326,5 +327,56 @@ class SmartcardOperationsUseCaseTest {
         );
 
         org.junit.jupiter.api.Assertions.assertSame(failure, actual);
+    }
+
+    @Test
+    void shouldReactivateWithNewEntitlement() {
+        ReactivateSmartcardRequest request = new ReactivateSmartcardRequest(
+                SmartcardSource.PHYSICAL,
+                SmartcardType.TIVU_HD
+        );
+
+        SmartcardResponse response = useCase.reactivate(SN, request);
+
+        ArgumentCaptor<RmgEntitlementRequest> captor =
+                ArgumentCaptor.forClass(RmgEntitlementRequest.class);
+
+        verify(nagraSmartcardGateway).reactivateSmartcard(
+                eq(SN),
+                eq(SmartcardSource.PHYSICAL),
+                captor.capture()
+        );
+
+        RmgEntitlementRequest sent = captor.getValue();
+
+        assertEquals(SN + "_TivuHD", sent.id());
+        assertEquals(SN + "_TivuHD", sent.accountId());
+        assertEquals("22", sent.productId());
+        assertEquals(
+                sent.validFrom().atZone(java.time.ZoneOffset.UTC)
+                        .plusYears(4).toInstant(),
+                sent.expiryDate()
+        );
+
+        assertEquals(SmartcardStatus.ENABLED, response.getStatus());
+        assertEquals(sent.id(), response.getEntitlementId());
+        assertEquals(sent.productId(), response.getProductId());
+        assertEquals(sent.expiryDate(), response.getExpiryDate());
+        org.junit.jupiter.api.Assertions.assertNull(response.getCaSn());
+    }
+
+    @Test
+    void reactivationShouldRejectMissingType() {
+        ReactivateSmartcardRequest request = new ReactivateSmartcardRequest(
+                SmartcardSource.PHYSICAL,
+                null
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> useCase.reactivate(SN, request)
+        );
+
+        verifyNoInteractions(nagraSmartcardGateway);
     }
 }

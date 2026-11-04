@@ -2,6 +2,7 @@ package it.tivusat.cas.application;
 
 import it.tivusat.cas.api.dto.ActivateSmartcardRequest;
 import it.tivusat.cas.api.dto.SmartcardResponse;
+import it.tivusat.cas.api.dto.ReactivateSmartcardRequest;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardStatus;
 import it.tivusat.cas.domain.NagraOperation;
@@ -16,6 +17,7 @@ import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
 import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
 import it.tivusat.cas.infrastructure.nagra.SubscriptionEntitlementFactory;
 import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
+
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -177,6 +179,49 @@ public class SmartcardOperationsUseCase {
                 SmartcardStatus.DELETED,
                 false,
                 null
+        );
+    }
+
+    public SmartcardResponse reactivate(
+            String sn,
+            ReactivateSmartcardRequest request
+    ) {
+        String ua = validateSnAndExtractUa(sn);
+
+        if (request == null) {
+            throw new IllegalArgumentException("request is required");
+        }
+        if (request.getSource() == null) {
+            throw new IllegalArgumentException("source is required");
+        }
+
+        RmgEntitlementRequest entitlement =
+                SubscriptionEntitlementFactory.create(
+                        sn,
+                        request.getSmartcardType(),
+                        Instant.now()
+                );
+
+        nagraSmartcardGateway.reactivateSmartcard(
+                sn,
+                request.getSource(),
+                entitlement
+        );
+
+        return new SmartcardResponse(
+                sn,
+                ua,
+                request.getSmartcardType(),
+                request.getSource(),
+                SmartcardStatus.ENABLED,
+                true,
+                true,
+                entitlement.id(),
+                entitlement.productId(),
+                null,
+                entitlement.expiryDate(),
+                entitlement.validFrom(),
+                entitlement.validFrom()
         );
     }
 

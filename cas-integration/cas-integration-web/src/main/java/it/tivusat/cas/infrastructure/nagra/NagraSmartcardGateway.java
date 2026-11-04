@@ -170,6 +170,49 @@ public class NagraSmartcardGateway {
         }
     }
 
+    public void reactivateSmartcard(
+            String sn,
+            SmartcardSource source,
+            RmgEntitlementRequest entitlement
+    ) {
+        if (source == null) {
+            throw new IllegalArgumentException("source is required");
+        }
+        if (entitlement == null) {
+            throw new IllegalArgumentException("entitlement is required");
+        }
+
+        if (!properties.enabled()) {
+            throw new NagraException(
+                    null,
+                    "NAGRA integration disabled; reactivation was not executed",
+                    null,
+                    NagraOperation.ADM_REACTIVATE_ACCOUNT,
+                    properties.paths().updateAccount(),
+                    NagraException.FailureType.INTEGRATION_DISABLED
+            );
+        }
+
+        nagraAdmClient.reactivateAccount(
+                source,
+                sn,
+                entitlement.accountId()
+        );
+
+        try {
+            nagraRmgClient.createEntitlement(
+                    source,
+                    sn,
+                    entitlement
+            );
+        } catch (NagraException exception) {
+            throw new NagraPartialFailureException(
+                    NagraOperation.ADM_REACTIVATE_ACCOUNT,
+                    exception
+            );
+        }
+    }
+
     public void deleteSmartcard(String sn, SmartcardSource source) {
         if (!properties.enabled()) {
             log.warn("NAGRA integration disabled. Skipping delete for smartcard {}", sn);
