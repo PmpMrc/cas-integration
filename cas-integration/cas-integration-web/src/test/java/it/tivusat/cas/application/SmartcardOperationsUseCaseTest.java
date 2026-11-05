@@ -22,7 +22,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraBundledAccountResponse;
 
+import java.time.Instant;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -217,46 +221,145 @@ class SmartcardOperationsUseCaseTest {
     }
 
     @Test
-    void statusWithoutDeviceOrEntitlementIsNotPreloaded() {
-        when(nagraSmartcardGateway.fetchSmartcardStatus(SN, SmartcardSource.PHYSICAL))
-                .thenReturn(NagraSmartcardStatusSnapshot.deviceNotFound(null));
+    void statusShouldReturnBundledAccountDatesAndEntitlementData()
+            throws Exception {
 
-        assertThrows(SmartcardNotFoundException.class,
-                () -> useCase.getStatus(SN, SmartcardSource.PHYSICAL));
-    }
+        ObjectMapper mapper =
+                new ObjectMapper().registerModule(new JavaTimeModule());
 
-    @Test
-    void statusWithEntitlementAndNoDeviceIsNotFound() {
+        NagraBundledAccountResponse account = mapper.readValue(
+                "{\"_id\":\"" + SN + "_TivuHD\","
+                        + "\"status\":\"ACTIVE\","
+                        + "\"created\":\"2026-10-01T08:00:00Z\","
+                        + "\"modified\":\"2026-11-05T09:00:00Z\","
+                        + "\"devices\":[{"
+                        + "\"deviceId\":\"" + SN + "_TivuHD\","
+                        + "\"smartCardId\":\"" + UA + "\","
+                        + "\"caSN\":\"1234567890\","
+                        + "\"device_status\":\"ENABLED\""
+                        + "}]}",
+                NagraBundledAccountResponse.class
+        );
+
         NagraEntitlementResponse entitlement = new NagraEntitlementResponse(
-                SN + "_TivuHD", SN, "22", "SUBSCRIBED", "ABSOLUTE",
-                "SUBSCRIPTION", null, null);
-        when(nagraSmartcardGateway.fetchSmartcardStatus(SN, SmartcardSource.PHYSICAL))
-                .thenReturn(NagraSmartcardStatusSnapshot.deviceNotFound(entitlement));
+                SN + "_TivuHD",
+                SN + "_TivuHD",
+                "22",
+                "SUBSCRIBED",
+                "ABSOLUTE",
+                "SUBSCRIPTION",
+                Instant.parse("2026-11-05T09:00:00Z"),
+                Instant.parse("2030-11-05T09:00:00Z")
+        );
 
-        assertThrows(SmartcardNotFoundException.class,
-                () -> useCase.getStatus(SN, SmartcardSource.PHYSICAL));
+        when(nagraSmartcardGateway.fetchSmartcardStatus(
+                SN,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL
+        )).thenReturn(NagraSmartcardStatusSnapshot.bundled(
+                account,
+                account.getDevices().get(0),
+                entitlement,
+                SmartcardStatus.ENABLED
+        ));
+
+        SmartcardResponse response = useCase.getStatus(
+                SN,
+                SmartcardSource.PHYSICAL,
+                SmartcardType.TIVU_HD
+        );
+
+        assertEquals(SmartcardStatus.ENABLED, response.getStatus());
+        assertEquals(SmartcardType.TIVU_HD, response.getSmartcardType());
+        assertEquals(SN + "_TivuHD", response.getEntitlementId());
+        assertEquals("22", response.getProductId());
+        assertEquals("1234567890", response.getCaSn());
+        assertEquals(entitlement.expiryDate(), response.getExpiryDate());
+
+        assertEquals(
+                Instant.parse("2026-10-01T08:00:00Z"),
+                response.getCreatedAt()
+        );
+        assertEquals(
+                Instant.parse("2026-11-05T09:00:00Z"),
+                response.getUpdatedAt()
+        );
     }
 
     @Test
-    void statusWithUnexpectedNagraDeviceStateIsNotEnabled() {
-        when(nagraSmartcardGateway.fetchSmartcardStatus(SN, SmartcardSource.PHYSICAL))
-                .thenReturn(NagraSmartcardStatusSnapshot.of(
-                        new NagraDeviceResponse("PENDING", null, UA, SN), null));
+    void statusShouldAllowPreloadedCardWithoutEntitlement() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
 
-        NagraException error = assertThrows(NagraException.class,
-                () -> useCase.getStatus(SN, SmartcardSource.PHYSICAL));
-        assertEquals(NagraException.FailureType.INVALID_RESPONSE, error.getFailureType());
-        assertEquals(NagraOperation.ADM_GET_DEVICE, error.getOperation());
+        NagraBundledAccountResponse account = mapper.readValue(
+                "{\"_id\":\"" + SN + "_TivuHD\","
+                        + "\"status\":\"ACTIVE\","
+                        + "\"devices\":[{"
+                        + "\"deviceId\":\"" + SN + "_TivuHD\","
+                        + "\"device_status\":\"DISABLED\""
+                        + "}]}",
+                NagraBundledAccountResponse.class
+        );
+
+        when(nagraSmartcardGateway.fetchSmartcardStatus(
+                SN,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL
+        )).thenReturn(NagraSmartcardStatusSnapshot.bundled(
+                account,
+                account.getDevices().get(0),
+                null,
+                SmartcardStatus.PRELOADED
+        ));
+
+        SmartcardResponse response = useCase.getStatus(
+                SN,
+                SmartcardSource.PHYSICAL,
+                SmartcardType.TIVU_HD
+        );
+
+        assertEquals(SmartcardStatus.PRELOADED, response.getStatus());
+        org.junit.jupiter.api.Assertions.assertNull(response.getEntitlementId());
+        org.junit.jupiter.api.Assertions.assertNull(response.getProductId());
+        org.junit.jupiter.api.Assertions.assertNull(response.getExpiryDate());
+        org.junit.jupiter.api.Assertions.assertNull(response.getCreatedAt());
+        org.junit.jupiter.api.Assertions.assertNull(response.getUpdatedAt());
     }
 
     @Test
-    void statusWithDisabledNagraDeviceIsDisabled() {
-        when(nagraSmartcardGateway.fetchSmartcardStatus(SN, SmartcardSource.PHYSICAL))
-                .thenReturn(NagraSmartcardStatusSnapshot.of(
-                        new NagraDeviceResponse("DISABLED", null, UA, SN), null));
+    void statusShouldRejectMissingTypeBeforeCallingNagra() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> useCase.getStatus(
+                        SN,
+                        SmartcardSource.PHYSICAL,
+                        null
+                )
+        );
 
-        assertEquals(SmartcardStatus.DISABLED,
-                useCase.getStatus(SN, SmartcardSource.PHYSICAL).getStatus());
+        verifyNoInteractions(nagraSmartcardGateway);
+    }
+
+    @Test
+    void statusShouldPropagateGatewayFailure() {
+        NagraException failure =
+                new NagraException(503, "Simulated ADM unavailable");
+
+        when(nagraSmartcardGateway.fetchSmartcardStatus(
+                SN,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL
+        )).thenThrow(failure);
+
+        NagraException actual = assertThrows(
+                NagraException.class,
+                () -> useCase.getStatus(
+                        SN,
+                        SmartcardSource.PHYSICAL,
+                        SmartcardType.TIVU_HD
+                )
+        );
+
+        org.junit.jupiter.api.Assertions.assertSame(failure, actual);
     }
 
     @Test

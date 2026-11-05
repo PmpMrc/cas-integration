@@ -8,6 +8,9 @@ import it.tivusat.cas.infrastructure.nagra.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import it.tivusat.cas.domain.SmartcardStatus;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraBundledAccountResponse;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraBundledDeviceResponse;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -269,5 +272,105 @@ public class NagraSmartcardGateway {
             }
             throw exception;
         }
+    }
+
+    public NagraSmartcardStatusSnapshot fetchSmartcardStatus(
+            String sn,
+            SmartcardType smartcardType,
+            SmartcardSource source
+    ) {
+        if (smartcardType == null) {
+            throw new IllegalArgumentException("smartcardType is required");
+        }
+        if (source == null) {
+            throw new IllegalArgumentException("source is required");
+        }
+
+        String accountId = sn + "_" + smartcardType.getNagraType();
+
+        String endpoint = properties.paths().getBundledAccount()
+                .replace("{accountId}", accountId);
+
+        if (!properties.enabled()) {
+            throw new NagraException(
+                    null,
+                    "NAGRA integration disabled; status was not retrieved",
+                    null,
+                    NagraOperation.ADM_GET_BUNDLED_ACCOUNT,
+                    endpoint,
+                    NagraException.FailureType.INTEGRATION_DISABLED
+            );
+        }
+
+        NagraBundledAccountResponse account =
+                nagraAdmClient.getBundledAccount(source, sn, accountId);
+
+        if (account == null) {
+            throw invalidBundledStatusResponse(
+                    endpoint,
+                    "NAGRA returned an empty bundled account response"
+            );
+        }
+
+        if (!accountId.equals(account.getId())) {
+            throw invalidBundledStatusResponse(
+                    endpoint,
+                    "Unexpected account id: expected " + accountId
+                            + ", received " + account.getId()
+            );
+        }
+
+        NagraBundledDeviceResponse selectedDevice = null;
+
+        if (account.getDevices() != null) {
+            for (NagraBundledDeviceResponse candidate : account.getDevices()) {
+                if (candidate != null
+                        && accountId.equals(candidate.getDeviceId())) {
+
+                    if (selectedDevice != null) {
+                        throw invalidBundledStatusResponse(
+                                endpoint,
+                                "Multiple devices returned with id " + accountId
+                        );
+                    }
+
+                    selectedDevice = candidate;
+                }
+            }
+        }
+
+        SmartcardStatus status = NagraSmartcardStatusMapper.resolve(
+                account.getStatus(),
+                selectedDevice == null ? null : selectedDevice.getStatus(),
+                endpoint
+        );
+
+        NagraEntitlementResponse entitlement =
+                nagraRmgClient.getEntitlementsByAccountId(
+                        source,
+                        sn,
+                        accountId
+                );
+
+        return NagraSmartcardStatusSnapshot.bundled(
+                account,
+                selectedDevice,
+                entitlement,
+                status
+        );
+    }
+
+    private NagraException invalidBundledStatusResponse(
+            String endpoint,
+            String message
+    ) {
+        return new NagraException(
+                null,
+                message,
+                null,
+                NagraOperation.ADM_GET_BUNDLED_ACCOUNT,
+                endpoint,
+                NagraException.FailureType.INVALID_RESPONSE
+        );
     }
 }

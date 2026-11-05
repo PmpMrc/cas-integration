@@ -3,10 +3,7 @@ package it.tivusat.cas.infrastructure.nagra;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.tivusat.cas.domain.NagraOperation;
 import it.tivusat.cas.domain.SmartcardSource;
-import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountRequest;
-import it.tivusat.cas.infrastructure.nagra.dto.AdmDeviceRequest;
-import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
-import it.tivusat.cas.infrastructure.nagra.dto.AdmBundledAccountRequest;
+import it.tivusat.cas.infrastructure.nagra.dto.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -485,6 +482,94 @@ class NagraAdmClientTest {
 
         assertEquals(8, args.length);
         assertEquals(accountId, args[7]);
+    }
+
+    @Test
+    void getBundledAccountShouldUseTypedIdAndReturnResponse() {
+        String accountId = SN + "_TivuHD";
+
+        org.mockito.Mockito.when(paths.getBundledAccount())
+                .thenReturn("/adm/v1/bundled/accounts/{accountId}");
+
+        NagraBundledAccountResponse expected =
+                new NagraBundledAccountResponse();
+
+        org.mockito.Mockito.when(restExecutor.execute(
+                NagraOperation.ADM_GET_BUNDLED_ACCOUNT,
+                SN,
+                HttpMethod.GET,
+                "/adm/v1/bundled/accounts/{accountId}",
+                SmartcardSource.PHYSICAL,
+                "W",
+                null,
+                NagraBundledAccountResponse.class,
+                accountId
+        )).thenReturn(expected);
+
+        NagraBundledAccountResponse actual = client.getBundledAccount(
+                SmartcardSource.PHYSICAL,
+                SN,
+                accountId
+        );
+
+        assertSame(expected, actual);
+
+        Object[] args = singleInvocation().getArguments();
+
+        assertEquals(NagraOperation.ADM_GET_BUNDLED_ACCOUNT, args[0]);
+        assertEquals(SN, args[1]);
+        assertEquals(HttpMethod.GET, args[2]);
+        assertEquals("/adm/v1/bundled/accounts/{accountId}", args[3]);
+        assertEquals(SmartcardSource.PHYSICAL, args[4]);
+        assertEquals("W", args[5]);
+
+        org.junit.jupiter.api.Assertions.assertNull(args[6]);
+
+        assertEquals(NagraBundledAccountResponse.class, args[7]);
+        assertEquals(9, args.length);
+        assertEquals(accountId, args[8]);
+    }
+
+    @Test
+    void getBundledAccountShouldPropagateUpstream404() {
+        String accountId = SN + "_TivuHD";
+
+        org.mockito.Mockito.when(paths.getBundledAccount())
+                .thenReturn("/adm/v1/bundled/accounts/{accountId}");
+
+        NagraException failure = new NagraException(
+                404,
+                "Account not found",
+                null,
+                NagraOperation.ADM_GET_BUNDLED_ACCOUNT,
+                "/adm/v1/bundled/accounts/" + accountId,
+                NagraException.FailureType.HTTP_ERROR
+        );
+
+        org.mockito.Mockito.when(restExecutor.execute(
+                NagraOperation.ADM_GET_BUNDLED_ACCOUNT,
+                SN,
+                HttpMethod.GET,
+                "/adm/v1/bundled/accounts/{accountId}",
+                SmartcardSource.PHYSICAL,
+                "W",
+                null,
+                NagraBundledAccountResponse.class,
+                accountId
+        )).thenThrow(failure);
+
+        NagraException actual =
+                org.junit.jupiter.api.Assertions.assertThrows(
+                        NagraException.class,
+                        () -> client.getBundledAccount(
+                                SmartcardSource.PHYSICAL,
+                                SN,
+                                accountId
+                        )
+                );
+
+        assertSame(failure, actual);
+        singleInvocation();
     }
 
     private Invocation singleInvocation() {

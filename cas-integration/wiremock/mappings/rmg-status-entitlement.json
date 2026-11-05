@@ -1,0 +1,38 @@
+{
+  "name": "Status - entitlement filtered by typed account",
+  "request": {
+    "method": "GET",
+    "urlPath": "/rmg/v1/operator/entitlements",
+    "queryParameters": {
+      "filter": {
+        "equalToJson": {
+          "accountId": "109687603246_TivuHD"
+        }
+      }
+    },
+    "headers": {
+      "nv-source-id": {
+        "equalTo": "1000"
+      },
+      "nv-broadcast-mode": {
+        "equalTo": "W"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "_id": "109687603246_TivuHD",
+      "accountId": "109687603246_TivuHD",
+      "productId": "22",
+      "status": "SUBSCRIBED",
+      "validityType": "ABSOLUTE",
+      "productType": "SUBSCRIPTION",
+      "validityFrom": "2026-11-05T09:00:00Z",
+      "expiryDate": "2030-11-05T09:00:00Z"
+    }
+  }
+}

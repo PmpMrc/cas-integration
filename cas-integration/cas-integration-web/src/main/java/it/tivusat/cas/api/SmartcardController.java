@@ -108,9 +108,16 @@ public class SmartcardController {
     @GetMapping("/{sn}/status")
     public ResponseEntity<SmartcardResponse> status(
             @PathVariable("sn") String sn,
-            @RequestParam("source") SmartcardSource source
+            @RequestParam("source") SmartcardSource source,
+            @RequestParam("smartcardType") SmartcardType smartcardType
     ) {
-        return ResponseEntity.ok(smartcardOperationsUseCase.getStatus(sn, source));
+        return ResponseEntity.ok(
+                smartcardOperationsUseCase.getStatus(
+                        sn,
+                        source,
+                        smartcardType
+                )
+        );
     }
 
 

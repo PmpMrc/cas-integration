@@ -242,13 +242,32 @@ class SmartcardControllerTest {
 
     @Test
     void statusShouldReturnOk() throws Exception {
-        when(smartcardOperationsUseCase.getStatus(eq(SN), eq(SmartcardSource.PHYSICAL)))
-                .thenReturn(response(SmartcardStatus.ENABLED));
+        when(smartcardOperationsUseCase.getStatus(
+                eq(SN),
+                eq(SmartcardSource.PHYSICAL),
+                eq(SmartcardType.TIVU_HD)
+        )).thenReturn(response(SmartcardStatus.ENABLED));
 
         mockMvc.perform(get("/api/v1/smartcards/" + SN + "/status")
-                        .param("source", "PHYSICAL"))
+                        .param("source", "PHYSICAL")
+                        .param("smartcardType", "TIVU_HD"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is("ENABLED")));
+
+        org.mockito.Mockito.verify(smartcardOperationsUseCase).getStatus(
+                SN,
+                SmartcardSource.PHYSICAL,
+                SmartcardType.TIVU_HD
+        );
+    }
+
+    @Test
+    void statusWithoutTypeShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/smartcards/" + SN + "/status")
+                        .param("source", "PHYSICAL"))
+                .andExpect(status().isBadRequest());
+
+        org.mockito.Mockito.verifyNoInteractions(smartcardOperationsUseCase);
     }
 
     @Test

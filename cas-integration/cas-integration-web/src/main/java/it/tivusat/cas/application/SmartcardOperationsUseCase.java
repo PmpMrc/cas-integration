@@ -17,6 +17,7 @@ import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
 import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
 import it.tivusat.cas.infrastructure.nagra.SubscriptionEntitlementFactory;
 import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
+import it.tivusat.cas.infrastructure.nagra.dto.NagraBundledDeviceResponse;
 
 import org.springframework.stereotype.Service;
 
@@ -255,55 +256,47 @@ public class SmartcardOperationsUseCase {
         );
     }
 
-    public SmartcardResponse getStatus(String sn, SmartcardSource source) {
+    public SmartcardResponse getStatus(
+            String sn,
+            SmartcardSource source,
+            SmartcardType smartcardType
+    ) {
         String ua = validateSnAndExtractUa(sn);
 
-        NagraSmartcardStatusSnapshot snapshot =
-                nagraSmartcardGateway.fetchSmartcardStatus(sn, source);
-
-        if (snapshot.skipped()) {
-            return baseResponse(sn, ua, null, source, SmartcardStatus.ERROR, false, null);
+        if (source == null) {
+            throw new IllegalArgumentException("source is required");
         }
-
-        NagraEntitlementResponse entitlement = snapshot.entitlement();
-
-        if (snapshot.deviceNotFound()) {
-            throw new SmartcardNotFoundException(sn);
-        }
-
-        NagraDeviceResponse device = snapshot.device();
-        String deviceStatus = device == null ? null : device.status();
-        SmartcardStatus status;
-        if ("DISABLED".equalsIgnoreCase(deviceStatus)) {
-            status = SmartcardStatus.DISABLED;
-        } else if ("ENABLED".equalsIgnoreCase(deviceStatus)) {
-            status = SmartcardStatus.ENABLED;
-        } else {
-            throw new NagraException(
-                    null,
-                    "ADM device returned an unexpected status for smartcard " + sn
-                            + ": " + deviceStatus,
-                    null,
-                    NagraOperation.ADM_GET_DEVICE,
-                    null,
-                    NagraException.FailureType.INVALID_RESPONSE
+        if (smartcardType == null) {
+            throw new IllegalArgumentException(
+                    "smartcardType is required for status; "
+                            + "Salesforce lookup is not available yet"
             );
         }
+
+        NagraSmartcardStatusSnapshot snapshot =
+                nagraSmartcardGateway.fetchSmartcardStatus(
+                        sn,
+                        smartcardType,
+                        source
+                );
+
+        NagraBundledDeviceResponse device = snapshot.bundledDevice();
+        NagraEntitlementResponse entitlement = snapshot.entitlement();
 
         return new SmartcardResponse(
                 sn,
                 ua,
-                null,
+                smartcardType,
                 source,
-                status,
+                snapshot.status(),
                 true,
-                true,
+                device != null,
                 entitlement != null ? entitlement.id() : null,
                 entitlement != null ? entitlement.productId() : null,
-                device.caSN(),
+                device != null ? device.getCaSn() : null,
                 entitlement != null ? entitlement.expiryDate() : null,
-                Instant.now(),
-                Instant.now()
+                snapshot.account().getCreatedAt(),
+                snapshot.account().getUpdatedAt()
         );
     }
 

@@ -1,9 +1,11 @@
 package it.tivusat.cas.infrastructure.nagra.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.Instant;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class NagraEntitlementResponse {
 
         @JsonProperty("_id")
@@ -14,7 +16,9 @@ public class NagraEntitlementResponse {
         private String status;
         private String validityType;
         private String productType;
+        @JsonProperty("validityFrom")
         private Instant validityFrom;
+        @JsonProperty("expiryDate")
         private Instant expiryDate;
 
         public NagraEntitlementResponse() {

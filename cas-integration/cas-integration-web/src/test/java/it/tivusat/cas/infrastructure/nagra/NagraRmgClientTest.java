@@ -233,6 +233,66 @@ class NagraRmgClientTest {
         singleInvocation();
     }
 
+    @Test
+    void getEntitlementsShouldFilterByTypedAccountAndLogOriginalSn() {
+        String accountId = SN + "_TivuHD";
+
+        NagraEntitlementResponse expected =
+                mock(NagraEntitlementResponse.class);
+
+        mockedEntitlementResponse = expected;
+
+        NagraEntitlementResponse actual = client.getEntitlementsByAccountId(
+                SmartcardSource.PHYSICAL,
+                SN,
+                accountId
+        );
+
+        assertSame(expected, actual);
+
+        Object[] args = singleInvocation().getArguments();
+
+        assertEquals(NagraOperation.RMG_GET_ENTITLEMENTS, args[0]);
+        assertEquals(SN, args[1]);
+        assertEquals(HttpMethod.GET, args[2]);
+        assertEquals(SmartcardSource.PHYSICAL, args[4]);
+        assertEquals("W", args[5]);
+        assertNull(args[6]);
+        assertEquals(NagraEntitlementResponse.class, args[7]);
+
+        String endpoint = String.valueOf(args[3]);
+        String prefix = "/rmg/v1/operator/entitlements?filter=";
+
+        assertTrue(endpoint.startsWith(prefix));
+        assertFalse(endpoint.contains("{"));
+        assertFalse(endpoint.contains("}"));
+        assertFalse(endpoint.contains("\""));
+
+        String decodedFilter = org.springframework.web.util.UriUtils.decode(
+                endpoint.substring(prefix.length()),
+                java.nio.charset.StandardCharsets.UTF_8
+        );
+
+        assertEquals(
+                "{\"accountId\":\"" + accountId + "\"}",
+                decodedFilter
+        );
+    }
+
+    @Test
+    void getEntitlementsShouldRejectMissingAccountIdWithoutHttpCall() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> client.getEntitlementsByAccountId(
+                        SmartcardSource.PHYSICAL,
+                        SN,
+                        null
+                )
+        );
+
+        org.mockito.Mockito.verifyNoInteractions(restExecutor);
+    }
+
     private Invocation singleInvocation() {
         Collection<Invocation> invocations = mockingDetails(restExecutor).getInvocations();
 

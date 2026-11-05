@@ -83,6 +83,38 @@ public class NagraRmgClient {
 
     }
 
+    public NagraEntitlementResponse getEntitlementsByAccountId(
+            SmartcardSource source,
+            String sn,
+            String accountId
+    ) {
+        if (accountId == null || accountId.trim().isEmpty()) {
+            throw new IllegalArgumentException("accountId is required");
+        }
+
+        String filter = "{\"accountId\":\"" + accountId + "\"}";
+
+        String encodedFilter = UriUtils.encodeQueryParam(
+                filter,
+                StandardCharsets.UTF_8
+        );
+
+        String endpoint = properties.paths().getEntitlements()
+                + "?filter="
+                + encodedFilter;
+
+        return executor.execute(
+                NagraOperation.RMG_GET_ENTITLEMENTS,
+                sn,
+                HttpMethod.GET,
+                endpoint,
+                source,
+                "W",
+                null,
+                NagraEntitlementResponse.class
+        );
+    }
+
     public void deleteEntitlement(
             SmartcardSource source,
             String sn,

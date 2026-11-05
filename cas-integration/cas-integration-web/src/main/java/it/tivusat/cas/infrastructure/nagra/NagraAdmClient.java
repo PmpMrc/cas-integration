@@ -201,4 +201,22 @@ public class NagraAdmClient {
                 accountId
         );
     }
+
+    public NagraBundledAccountResponse getBundledAccount(
+            SmartcardSource source,
+            String sn,
+            String accountId
+    ) {
+        return executor.execute(
+                NagraOperation.ADM_GET_BUNDLED_ACCOUNT,
+                sn,
+                HttpMethod.GET,
+                properties.paths().getBundledAccount(),
+                source,
+                "W",
+                null,
+                NagraBundledAccountResponse.class,
+                accountId
+        );
+    }
 }
