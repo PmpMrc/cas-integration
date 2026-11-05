@@ -93,11 +93,16 @@ public class SmartcardController {
     @DeleteMapping("/{sn}")
     public ResponseEntity<SmartcardResponse> delete(
             @PathVariable("sn") String sn,
-            @RequestParam("source") SmartcardSource source
+            @RequestParam("source") SmartcardSource source,
+            @RequestParam("smartcardType") SmartcardType smartcardType
     ) {
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
-                .body(smartcardOperationsUseCase.delete(sn, source));
+                .body(smartcardOperationsUseCase.delete(
+                        sn,
+                        source,
+                        smartcardType
+                ));
     }
 
     @GetMapping("/{sn}/status")

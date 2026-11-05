@@ -99,6 +99,7 @@ public class NagraProperties {
         private String getEntitlements;
         private String updateAccount;
         private String deleteEntitlement;
+        private String cancelAccount;
 
 
         public String getCreateAccount() {
@@ -190,6 +191,12 @@ public class NagraProperties {
         public String deleteEntitlement() { return deleteEntitlement; }
 
         public void setDeleteEntitlement(String deleteEntitlement) { this.deleteEntitlement = deleteEntitlement; }
+
+        public String getCancelAccount() { return cancelAccount; }
+
+        public String cancelAccount() { return cancelAccount; }
+
+        public void setCancelAccount(String cancelAccount) { this.cancelAccount = cancelAccount; }
 
     }
 }

@@ -26,6 +26,7 @@ import java.util.Collections;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -161,7 +162,7 @@ class SmartcardControllerTest {
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.status", is("DISABLED")));
 
-        org.mockito.Mockito.verify(smartcardOperationsUseCase).suspend(
+        verify(smartcardOperationsUseCase).suspend(
                 SN,
                 SmartcardSource.PHYSICAL,
                 SmartcardType.TIVU_HD
@@ -220,13 +221,23 @@ class SmartcardControllerTest {
 
     @Test
     void deleteShouldReturnAccepted() throws Exception {
-        when(smartcardOperationsUseCase.delete(eq(SN), eq(SmartcardSource.PHYSICAL)))
-                .thenReturn(response(SmartcardStatus.DELETED));
+        when(smartcardOperationsUseCase.delete(
+                eq(SN),
+                eq(SmartcardSource.PHYSICAL),
+                eq(SmartcardType.TIVU_HD)
+        )).thenReturn(response(SmartcardStatus.DELETED));
 
         mockMvc.perform(delete("/api/v1/smartcards/" + SN)
-                        .param("source", "PHYSICAL"))
+                        .param("source", "PHYSICAL")
+                        .param("smartcardType", "TIVU_HD"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.status", is("DELETED")));
+
+        verify(smartcardOperationsUseCase).delete(
+                SN,
+                SmartcardSource.PHYSICAL,
+                SmartcardType.TIVU_HD
+        );
     }
 
     @Test
@@ -303,7 +314,7 @@ class SmartcardControllerTest {
                         it.tivusat.cas.api.dto.ReactivateSmartcardRequest.class
                 );
 
-        org.mockito.Mockito.verify(smartcardOperationsUseCase)
+        verify(smartcardOperationsUseCase)
                 .reactivate(eq(SN), captor.capture());
 
         org.junit.jupiter.api.Assertions.assertEquals(
@@ -331,6 +342,15 @@ class SmartcardControllerTest {
         mockMvc.perform(post("/api/v1/smartcards/" + SN + "/reactivate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"smartcardType\":\"TIVU_HD\"}"))
+                .andExpect(status().isBadRequest());
+
+        org.mockito.Mockito.verifyNoInteractions(smartcardOperationsUseCase);
+    }
+
+    @Test
+    void deleteWithoutTypeShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(delete("/api/v1/smartcards/" + SN)
+                        .param("source", "PHYSICAL"))
                 .andExpect(status().isBadRequest());
 
         org.mockito.Mockito.verifyNoInteractions(smartcardOperationsUseCase);

@@ -2,11 +2,7 @@ package it.tivusat.cas.infrastructure.nagra;
 
 import it.tivusat.cas.domain.NagraOperation;
 import it.tivusat.cas.domain.SmartcardSource;
-import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountRequest;
-import it.tivusat.cas.infrastructure.nagra.dto.AdmDeviceRequest;
-import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
-import it.tivusat.cas.infrastructure.nagra.dto.AdmBundledAccountRequest;
-import it.tivusat.cas.infrastructure.nagra.dto.AdmAccountStatusRequest;
+import it.tivusat.cas.infrastructure.nagra.dto.*;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 
@@ -185,6 +181,23 @@ public class NagraAdmClient {
                 source,
                 "N",
                 AdmAccountStatusRequest.active(),
+                accountId
+        );
+    }
+
+    public void cancelAccount(
+            SmartcardSource source,
+            String sn,
+            String accountId
+    ) {
+        executor.execute(
+                NagraOperation.ADM_CANCEL_ACCOUNT,
+                sn,
+                HttpMethod.PUT,
+                properties.paths().cancelAccount(),
+                source,
+                "N",
+                new AdmCancelAccountRequest(),
                 accountId
         );
     }

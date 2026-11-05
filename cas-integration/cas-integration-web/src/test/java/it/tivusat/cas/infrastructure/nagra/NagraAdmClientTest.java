@@ -448,6 +448,45 @@ class NagraAdmClientTest {
         singleInvocation();
     }
 
+    @Test
+    void cancelAccountShouldSendCancelledStatusAndStringCancelIcc()
+            throws Exception {
+
+        String accountId = SN + "_TivuHD";
+
+        org.mockito.Mockito.when(paths.cancelAccount())
+                .thenReturn("/adm/v1/accounts/{accountId}");
+
+        client.cancelAccount(
+                SmartcardSource.PHYSICAL,
+                SN,
+                accountId
+        );
+
+        Object[] args = singleInvocation().getArguments();
+
+        assertEquals(NagraOperation.ADM_CANCEL_ACCOUNT, args[0]);
+        assertEquals(SN, args[1]);
+        assertEquals(HttpMethod.PUT, args[2]);
+        assertEquals("/adm/v1/accounts/{accountId}", args[3]);
+        assertEquals(SmartcardSource.PHYSICAL, args[4]);
+        assertEquals("N", args[5]);
+
+        com.fasterxml.jackson.databind.JsonNode body =
+                objectMapper.valueToTree(args[6]);
+
+        assertEquals(
+                objectMapper.readTree(
+                        "{\"status\":\"CANCELLED\",\"cancelICC\":\"true\"}"
+                ),
+                body
+        );
+        assertTrue(body.get("cancelICC").isTextual());
+
+        assertEquals(8, args.length);
+        assertEquals(accountId, args[7]);
+    }
+
     private Invocation singleInvocation() {
         Collection<Invocation> invocations = mockingDetails(restExecutor).getInvocations();
 

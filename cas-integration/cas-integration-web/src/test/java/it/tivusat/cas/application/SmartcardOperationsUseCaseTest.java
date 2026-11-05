@@ -23,8 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -127,7 +126,7 @@ class SmartcardOperationsUseCaseTest {
                 captor.getValue().accountId()
         );
         assertEquals(SmartcardStatus.ENABLED, response.getStatus());
-        org.junit.jupiter.api.Assertions.assertNull(response.getCaSn());
+        assertNull(response.getCaSn());
     }
 
     @Test
@@ -145,10 +144,10 @@ class SmartcardOperationsUseCaseTest {
         assertEquals(SmartcardStatus.ENABLED, response.getStatus());
         assertEquals(SmartcardType.TIVU_HD, response.getSmartcardType());
 
-        org.junit.jupiter.api.Assertions.assertNull(response.getEntitlementId());
-        org.junit.jupiter.api.Assertions.assertNull(response.getProductId());
-        org.junit.jupiter.api.Assertions.assertNull(response.getCaSn());
-        org.junit.jupiter.api.Assertions.assertNull(response.getExpiryDate());
+        assertNull(response.getEntitlementId());
+        assertNull(response.getProductId());
+        assertNull(response.getCaSn());
+        assertNull(response.getExpiryDate());
 
         verify(nagraSmartcardGateway).refreshSmartcard(
                 SN,
@@ -168,9 +167,9 @@ class SmartcardOperationsUseCaseTest {
         assertEquals(SmartcardStatus.DISABLED, response.getStatus());
         assertEquals(SmartcardType.TIVU_HD, response.getSmartcardType());
 
-        org.junit.jupiter.api.Assertions.assertNull(response.getEntitlementId());
-        org.junit.jupiter.api.Assertions.assertNull(response.getProductId());
-        org.junit.jupiter.api.Assertions.assertNull(response.getExpiryDate());
+        assertNull(response.getEntitlementId());
+        assertNull(response.getProductId());
+        assertNull(response.getExpiryDate());
 
         verify(nagraSmartcardGateway).suspendSmartcard(
                 SN,
@@ -195,14 +194,25 @@ class SmartcardOperationsUseCaseTest {
 
     @Test
     void shouldDeleteSmartcard() {
-        SmartcardResponse response = useCase.delete(SN, SmartcardSource.PHYSICAL);
+        SmartcardResponse response = useCase.delete(
+                SN,
+                SmartcardSource.PHYSICAL,
+                SmartcardType.TIVU_HD
+        );
 
         assertEquals(SmartcardStatus.DELETED, response.getStatus());
-        assertEquals(false, response.isDeviceCreated());
+        assertEquals(SmartcardType.TIVU_HD, response.getSmartcardType());
+        assertEquals(true, response.isAccountCreated());
+        assertEquals(true, response.isDeviceCreated());
+
+        assertNull(response.getEntitlementId());
+        assertNull(response.getProductId());
+        assertNull(response.getExpiryDate());
 
         verify(nagraSmartcardGateway).deleteSmartcard(
-                eq(SN),
-                eq(SmartcardSource.PHYSICAL)
+                SN,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL
         );
     }
 
@@ -362,7 +372,7 @@ class SmartcardOperationsUseCaseTest {
         assertEquals(sent.id(), response.getEntitlementId());
         assertEquals(sent.productId(), response.getProductId());
         assertEquals(sent.expiryDate(), response.getExpiryDate());
-        org.junit.jupiter.api.Assertions.assertNull(response.getCaSn());
+        assertNull(response.getCaSn());
     }
 
     @Test
@@ -375,6 +385,34 @@ class SmartcardOperationsUseCaseTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> useCase.reactivate(SN, request)
+        );
+
+        verifyNoInteractions(nagraSmartcardGateway);
+    }
+
+    @Test
+    void deleteShouldRejectMissingTypeBeforeCallingNagra() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> useCase.delete(
+                        SN,
+                        SmartcardSource.PHYSICAL,
+                        null
+                )
+        );
+
+        verifyNoInteractions(nagraSmartcardGateway);
+    }
+
+    @Test
+    void deleteShouldRejectVirtualSourceUntilPolicyIsConfirmed() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> useCase.delete(
+                        SN,
+                        SmartcardSource.VIRTUAL,
+                        SmartcardType.TIVU_VIRTUAL
+                )
         );
 
         verifyNoInteractions(nagraSmartcardGateway);

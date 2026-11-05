@@ -213,13 +213,42 @@ public class NagraSmartcardGateway {
         }
     }
 
-    public void deleteSmartcard(String sn, SmartcardSource source) {
-        if (!properties.enabled()) {
-            log.warn("NAGRA integration disabled. Skipping delete for smartcard {}", sn);
-            return;
+    public void deleteSmartcard(
+            String sn,
+            SmartcardType smartcardType,
+            SmartcardSource source
+    ) {
+        if (smartcardType == null) {
+            throw new IllegalArgumentException("smartcardType is required");
+        }
+        if (source == null) {
+            throw new IllegalArgumentException("source is required");
+        }
+        if (source != SmartcardSource.PHYSICAL) {
+            throw new IllegalArgumentException(
+                    "Virtual smartcard cancellation is not available yet; "
+                            + "the NAGRA cancellation policy must be confirmed"
+            );
         }
 
-        nagraAdmClient.deleteDevice(source, sn);
+        if (!properties.enabled()) {
+            throw new NagraException(
+                    null,
+                    "NAGRA integration disabled; cancellation was not executed",
+                    null,
+                    NagraOperation.ADM_CANCEL_ACCOUNT,
+                    properties.paths().cancelAccount(),
+                    NagraException.FailureType.INTEGRATION_DISABLED
+            );
+        }
+
+        String accountId = sn + "_" + smartcardType.getNagraType();
+
+        nagraAdmClient.cancelAccount(
+                source,
+                sn,
+                accountId
+        );
     }
 
     public NagraSmartcardStatusSnapshot fetchSmartcardStatus(String sn, SmartcardSource source) {
