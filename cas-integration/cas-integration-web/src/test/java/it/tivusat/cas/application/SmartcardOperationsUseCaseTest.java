@@ -216,7 +216,8 @@ class SmartcardOperationsUseCaseTest {
         verify(nagraSmartcardGateway).deleteSmartcard(
                 SN,
                 SmartcardType.TIVU_HD,
-                SmartcardSource.PHYSICAL
+                SmartcardSource.PHYSICAL,
+                false
         );
     }
 
@@ -508,16 +509,38 @@ class SmartcardOperationsUseCaseTest {
     }
 
     @Test
-    void deleteShouldRejectVirtualSourceUntilPolicyIsConfirmed() {
+    void deleteShouldRejectPurgeForPhysicalSource() {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> useCase.delete(
                         SN,
-                        SmartcardSource.VIRTUAL,
-                        SmartcardType.TIVU_VIRTUAL
+                        SmartcardSource.PHYSICAL,
+                        SmartcardType.TIVU_HD,
+                        true
                 )
         );
 
         verifyNoInteractions(nagraSmartcardGateway);
+    }
+
+    @Test
+    void deleteWithPurgeShouldReturnAccountAndDeviceAbsent() {
+        SmartcardResponse response = useCase.delete(
+                SN,
+                SmartcardSource.VIRTUAL,
+                SmartcardType.TIVU_HD,
+                true
+        );
+
+        assertEquals(SmartcardStatus.DELETED, response.getStatus());
+        assertEquals(false, response.isAccountCreated());
+        assertEquals(false, response.isDeviceCreated());
+
+        verify(nagraSmartcardGateway).deleteSmartcard(
+                SN,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.VIRTUAL,
+                true
+        );
     }
 }

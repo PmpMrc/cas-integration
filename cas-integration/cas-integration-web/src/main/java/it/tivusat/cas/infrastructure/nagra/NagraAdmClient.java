@@ -219,4 +219,31 @@ public class NagraAdmClient {
                 accountId
         );
     }
+
+    public void purgeAccount(
+            SmartcardSource source,
+            String sn,
+            String accountId
+    ) {
+        if (source != SmartcardSource.VIRTUAL) {
+            throw new IllegalArgumentException(
+                    "Account purge is allowed only for virtual smartcards"
+            );
+        }
+
+        if (accountId == null || accountId.trim().isEmpty()) {
+            throw new IllegalArgumentException("accountId is required");
+        }
+
+        executor.execute(
+                NagraOperation.ADM_PURGE_ACCOUNT,
+                sn,
+                HttpMethod.DELETE,
+                properties.paths().purgeAccount(),
+                source,
+                "N",
+                null,
+                accountId
+        );
+    }
 }

@@ -572,6 +572,108 @@ class NagraAdmClientTest {
         singleInvocation();
     }
 
+    @Test
+    void purgeAccountShouldDeleteVirtualAccountWithoutBody() {
+        String accountId = SN + "_TivuVirtual";
+
+        org.mockito.Mockito.when(paths.purgeAccount())
+                .thenReturn(
+                        "/adm/v1/accounts/actions/purgeAccount/{accountId}"
+                );
+
+        client.purgeAccount(
+                SmartcardSource.VIRTUAL,
+                SN,
+                accountId
+        );
+
+        Object[] args = singleInvocation().getArguments();
+
+        assertEquals(NagraOperation.ADM_PURGE_ACCOUNT, args[0]);
+        assertEquals(SN, args[1]);
+        assertEquals(HttpMethod.DELETE, args[2]);
+        assertEquals(
+                "/adm/v1/accounts/actions/purgeAccount/{accountId}",
+                args[3]
+        );
+        assertEquals(SmartcardSource.VIRTUAL, args[4]);
+        assertEquals("N", args[5]);
+
+        org.junit.jupiter.api.Assertions.assertNull(args[6]);
+
+        assertEquals(8, args.length);
+        assertEquals(accountId, args[7]);
+    }
+
+    @Test
+    void purgeAccountShouldRejectPhysicalSourceWithoutHttpCall() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> client.purgeAccount(
+                        SmartcardSource.PHYSICAL,
+                        SN,
+                        SN + "_TivuHD"
+                )
+        );
+
+        org.mockito.Mockito.verifyNoInteractions(restExecutor);
+    }
+
+    @Test
+    void purgeAccountShouldRejectMissingAccountIdWithoutHttpCall() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> client.purgeAccount(
+                        SmartcardSource.VIRTUAL,
+                        SN,
+                        null
+                )
+        );
+
+        org.mockito.Mockito.verifyNoInteractions(restExecutor);
+    }
+
+    @Test
+    void purgeAccountShouldPropagateNagraFailure() {
+        String accountId = SN + "_TivuVirtual";
+
+        org.mockito.Mockito.when(paths.purgeAccount())
+                .thenReturn(
+                        "/adm/v1/accounts/actions/purgeAccount/{accountId}"
+                );
+
+        NagraException failure = new NagraException(
+                503,
+                "Simulated ADM unavailable"
+        );
+
+        org.mockito.Mockito.doThrow(failure)
+                .when(restExecutor)
+                .execute(
+                        NagraOperation.ADM_PURGE_ACCOUNT,
+                        SN,
+                        HttpMethod.DELETE,
+                        "/adm/v1/accounts/actions/purgeAccount/{accountId}",
+                        SmartcardSource.VIRTUAL,
+                        "N",
+                        null,
+                        accountId
+                );
+
+        NagraException actual =
+                org.junit.jupiter.api.Assertions.assertThrows(
+                        NagraException.class,
+                        () -> client.purgeAccount(
+                                SmartcardSource.VIRTUAL,
+                                SN,
+                                accountId
+                        )
+                );
+
+        assertSame(failure, actual);
+        singleInvocation();
+    }
+
     private Invocation singleInvocation() {
         Collection<Invocation> invocations = mockingDetails(restExecutor).getInvocations();
 

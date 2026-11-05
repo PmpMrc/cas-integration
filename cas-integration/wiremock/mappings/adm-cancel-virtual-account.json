@@ -1,0 +1,37 @@
+{
+  "name": "Cancel - virtual source test account",
+  "request": {
+    "method": "PUT",
+    "url": "/adm/v1/accounts/109687603246_TivuHD",
+    "headers": {
+      "Content-Type": {
+        "contains": "application/json"
+      },
+      "nv-source-id": {
+        "equalTo": "2000"
+      },
+      "nv-broadcast-mode": {
+        "equalTo": "N"
+      }
+    },
+    "bodyPatterns": [
+      {
+        "equalToJson": {
+          "status": "CANCELLED",
+          "cancelICC": "true"
+        },
+        "ignoreArrayOrder": false,
+        "ignoreExtraElements": false
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "result": "Account cancelled"
+    }
+  }
+}

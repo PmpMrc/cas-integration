@@ -19,3 +19,4 @@ nagra:
     delete-entitlement: "/rmg/v1/operator/entitlements/{entitlementId}"
     cancel-account: "/adm/v1/accounts/{accountId}"
     get-bundled-account: "/adm/v1/bundled/accounts/{accountId}"
+    purge-account: "/adm/v1/accounts/actions/purgeAccount/{accountId}"

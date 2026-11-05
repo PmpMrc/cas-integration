@@ -101,6 +101,7 @@ public class NagraProperties {
         private String deleteEntitlement;
         private String cancelAccount;
         private String getBundledAccount;
+        private String purgeAccount;
 
 
         public String getCreateAccount() {
@@ -204,5 +205,11 @@ public class NagraProperties {
         public String getBundledAccount() { return getBundledAccount; }
 
         public void setGetBundledAccount(String getBundledAccount) { this.getBundledAccount = getBundledAccount; }
+
+        public String getPurgeAccount() { return purgeAccount; }
+
+        public String purgeAccount() { return purgeAccount; }
+
+        public void setPurgeAccount(String purgeAccount) { this.purgeAccount = purgeAccount; }
     }
 }

@@ -224,7 +224,8 @@ class SmartcardControllerTest {
         when(smartcardOperationsUseCase.delete(
                 eq(SN),
                 eq(SmartcardSource.PHYSICAL),
-                eq(SmartcardType.TIVU_HD)
+                eq(SmartcardType.TIVU_HD),
+                eq(false)
         )).thenReturn(response(SmartcardStatus.DELETED));
 
         mockMvc.perform(delete("/api/v1/smartcards/" + SN)
@@ -236,7 +237,8 @@ class SmartcardControllerTest {
         verify(smartcardOperationsUseCase).delete(
                 SN,
                 SmartcardSource.PHYSICAL,
-                SmartcardType.TIVU_HD
+                SmartcardType.TIVU_HD,
+                false
         );
     }
 
@@ -375,6 +377,29 @@ class SmartcardControllerTest {
         org.mockito.Mockito.verifyNoInteractions(smartcardOperationsUseCase);
     }
 
+    @Test
+    void deleteShouldForwardExplicitPurgeOption() throws Exception {
+        when(smartcardOperationsUseCase.delete(
+                eq(SN),
+                eq(SmartcardSource.VIRTUAL),
+                eq(SmartcardType.TIVU_HD),
+                eq(true)
+        )).thenReturn(response(SmartcardStatus.DELETED));
+
+        mockMvc.perform(delete("/api/v1/smartcards/" + SN)
+                        .param("source", "VIRTUAL")
+                        .param("smartcardType", "TIVU_HD")
+                        .param("purgeForReuse", "true"))
+                .andExpect(status().isAccepted());
+
+        org.mockito.Mockito.verify(smartcardOperationsUseCase).delete(
+                SN,
+                SmartcardSource.VIRTUAL,
+                SmartcardType.TIVU_HD,
+                true
+        );
+    }
+
     private SmartcardResponse response(SmartcardStatus status) {
         return new SmartcardResponse(
                 SN,
@@ -392,4 +417,6 @@ class SmartcardControllerTest {
                 Instant.parse("2026-01-01T00:00:00Z")
         );
     }
+
+
 }

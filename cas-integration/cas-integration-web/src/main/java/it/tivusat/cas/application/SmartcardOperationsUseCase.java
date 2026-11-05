@@ -172,25 +172,34 @@ public class SmartcardOperationsUseCase {
             SmartcardSource source,
             SmartcardType smartcardType
     ) {
-        String ua = validateSnAndExtractUa(sn);
+        return delete(sn, source, smartcardType, false);
+    }
 
+    public SmartcardResponse delete(
+            String sn,
+            SmartcardSource source,
+            SmartcardType smartcardType,
+            boolean purgeForReuse
+    ) {
         if (source == null) {
             throw new IllegalArgumentException("source is required");
         }
         if (smartcardType == null) {
             throw new IllegalArgumentException("smartcardType is required");
         }
-        if (source != SmartcardSource.PHYSICAL) {
+        if (purgeForReuse && source != SmartcardSource.VIRTUAL) {
             throw new IllegalArgumentException(
-                    "Virtual smartcard cancellation is not available yet; "
-                            + "the NAGRA cancellation policy must be confirmed"
+                    "purgeForReuse is allowed only for virtual smartcards"
             );
         }
+
+        String ua = validateSnAndExtractUa(sn);
 
         nagraSmartcardGateway.deleteSmartcard(
                 sn,
                 smartcardType,
-                source
+                source,
+                purgeForReuse
         );
 
         Instant now = Instant.now()
@@ -202,8 +211,8 @@ public class SmartcardOperationsUseCase {
                 smartcardType,
                 source,
                 SmartcardStatus.DELETED,
-                true,
-                true,
+                !purgeForReuse,
+                !purgeForReuse,
                 null,
                 null,
                 null,

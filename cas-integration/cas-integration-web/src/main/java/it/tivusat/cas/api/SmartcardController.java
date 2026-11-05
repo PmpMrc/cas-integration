@@ -94,14 +94,19 @@ public class SmartcardController {
     public ResponseEntity<SmartcardResponse> delete(
             @PathVariable("sn") String sn,
             @RequestParam("source") SmartcardSource source,
-            @RequestParam("smartcardType") SmartcardType smartcardType
+            @RequestParam("smartcardType") SmartcardType smartcardType,
+            @RequestParam(
+                    value = "purgeForReuse",
+                    defaultValue = "false"
+            ) boolean purgeForReuse
     ) {
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
                 .body(smartcardOperationsUseCase.delete(
                         sn,
                         source,
-                        smartcardType
+                        smartcardType,
+                        purgeForReuse
                 ));
     }
 
