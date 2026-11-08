@@ -80,7 +80,8 @@ class PreloadSmartcardUseCaseTest {
                 SN,
                 UA,
                 SmartcardType.TIVU_HD,
-                SmartcardSource.PHYSICAL
+                SmartcardSource.PHYSICAL,
+                null
         );
     }
 
@@ -161,7 +162,8 @@ class PreloadSmartcardUseCaseTest {
                         SN,
                         UA,
                         SmartcardType.TIVU_HD,
-                        SmartcardSource.PHYSICAL
+                        SmartcardSource.PHYSICAL,
+                        null
                 );
 
         it.tivusat.cas.infrastructure.nagra.NagraException actual =
@@ -171,5 +173,97 @@ class PreloadSmartcardUseCaseTest {
                 );
 
         org.junit.jupiter.api.Assertions.assertSame(failure, actual);
+    }
+
+    @Test
+    void shouldForwardCaSnForPairingAndReturnIt() {
+        PreloadSmartcardRequest request = new PreloadSmartcardRequest(
+                SN,
+                SmartcardType.TIVU_HD_PAIRING,
+                SmartcardSource.PHYSICAL,
+                PRODUCT_ID
+        );
+        request.setCaSn(" 1234567890 ");
+
+        SmartcardResponse response = useCase.preload(request);
+
+        assertEquals("1234567890", response.getCaSn());
+        assertEquals(SmartcardStatus.PRELOADED, response.getStatus());
+
+        verify(nagraSmartcardGateway).preloadSmartcard(
+                SN,
+                UA,
+                SmartcardType.TIVU_HD_PAIRING,
+                SmartcardSource.PHYSICAL,
+                "1234567890"
+        );
+    }
+
+    @Test
+    void shouldAllowPairingWithoutCaSn() {
+        PreloadSmartcardRequest request = new PreloadSmartcardRequest(
+                SN,
+                SmartcardType.TIVU_HD_PAIRING,
+                SmartcardSource.PHYSICAL,
+                PRODUCT_ID
+        );
+
+        SmartcardResponse response = useCase.preload(request);
+
+        assertNull(response.getCaSn());
+
+        verify(nagraSmartcardGateway).preloadSmartcard(
+                SN,
+                UA,
+                SmartcardType.TIVU_HD_PAIRING,
+                SmartcardSource.PHYSICAL,
+                null
+        );
+    }
+
+    @Test
+    void shouldOmitBlankCaSnForPairing() {
+        PreloadSmartcardRequest request = new PreloadSmartcardRequest(
+                SN,
+                SmartcardType.TIVU_HD_PAIRING,
+                SmartcardSource.PHYSICAL,
+                PRODUCT_ID
+        );
+        request.setCaSn("   ");
+
+        SmartcardResponse response = useCase.preload(request);
+
+        assertNull(response.getCaSn());
+
+        verify(nagraSmartcardGateway).preloadSmartcard(
+                SN,
+                UA,
+                SmartcardType.TIVU_HD_PAIRING,
+                SmartcardSource.PHYSICAL,
+                null
+        );
+    }
+
+    @Test
+    void shouldIgnoreCaSnForNonPairingSmartcard() {
+        PreloadSmartcardRequest request = new PreloadSmartcardRequest(
+                SN,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL,
+                PRODUCT_ID
+        );
+        request.setCaSn("1234567890");
+
+        SmartcardResponse response = useCase.preload(request);
+
+        assertNull(response.getCaSn());
+
+        verify(nagraSmartcardGateway).preloadSmartcard(
+                SN,
+                UA,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL,
+                null
+        );
     }
 }

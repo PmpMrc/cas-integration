@@ -22,6 +22,8 @@ public class PreloadSmartcardRequest {
         @Size(min = 1)
         private String productId;
 
+        private String caSn;
+
         public PreloadSmartcardRequest() {
         }
 
@@ -79,4 +81,10 @@ public class PreloadSmartcardRequest {
         public String productId() {
                 return productId;
         }
+
+        public String getCaSn() { return caSn; }
+
+        public void setCaSn(String caSn) { this.caSn = caSn; }
+
+        public String caSn() { return caSn; }
 }

@@ -8,7 +8,11 @@ public class AdmBundledAccountRequest extends AdmAccountRequest {
 
     private final List<AdmDeviceRequest> devices;
 
-    private AdmBundledAccountRequest(String accountId, String ua) {
+    private AdmBundledAccountRequest(
+            String accountId,
+            String ua,
+            String caSn
+    ) {
         super(
                 accountId,
                 "ACTIVE",
@@ -20,7 +24,7 @@ public class AdmBundledAccountRequest extends AdmAccountRequest {
                 new AdmDeviceRequest(
                         accountId,
                         "DISABLED",
-                        null,
+                        caSn,
                         ua,
                         accountId
                 )
@@ -31,10 +35,18 @@ public class AdmBundledAccountRequest extends AdmAccountRequest {
             String accountId,
             String ua
     ) {
+        return preload(accountId, ua, null);
+    }
+
+    public static AdmBundledAccountRequest preload(
+            String accountId,
+            String ua,
+            String caSn
+    ) {
         Objects.requireNonNull(accountId, "accountId is required");
         Objects.requireNonNull(ua, "ua is required");
 
-        return new AdmBundledAccountRequest(accountId, ua);
+        return new AdmBundledAccountRequest(accountId, ua, caSn);
     }
 
     public List<AdmDeviceRequest> getDevices() {

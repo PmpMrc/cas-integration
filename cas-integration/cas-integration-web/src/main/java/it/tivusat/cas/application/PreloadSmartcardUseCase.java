@@ -4,9 +4,11 @@ import it.tivusat.cas.api.dto.PreloadSmartcardRequest;
 import it.tivusat.cas.api.dto.SmartcardResponse;
 import it.tivusat.cas.domain.SmartcardStatus;
 import it.tivusat.cas.domain.SmartcardValidator;
+import it.tivusat.cas.domain.SmartcardType;
 import it.tivusat.cas.domain.UaRangeClassifier;
 import it.tivusat.cas.infrastructure.nagra.NagraSmartcardGateway;
 import org.springframework.stereotype.Service;
+
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -47,11 +49,20 @@ public class PreloadSmartcardUseCase {
         String ua = smartcardValidator.extractUa(request.sn());
         uaRangeClassifier.validateRestSupported(ua);
 
+        String caSn = null;
+
+        if (SmartcardType.TIVU_HD_PAIRING.equals(request.smartcardType())
+                && request.caSn() != null
+                && !request.caSn().trim().isEmpty()) {
+            caSn = request.caSn().trim();
+        }
+
         nagraSmartcardGateway.preloadSmartcard(
                 request.sn(),
                 ua,
                 request.smartcardType(),
-                request.source()
+                request.source(),
+                caSn
         );
 
         Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
@@ -66,7 +77,7 @@ public class PreloadSmartcardUseCase {
                 true,
                 null,
                 null,
-                null,
+                caSn,
                 null,
                 now,
                 now

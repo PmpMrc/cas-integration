@@ -41,6 +41,16 @@ public class NagraSmartcardGateway {
             SmartcardType smartcardType,
             SmartcardSource source
     ) {
+        preloadSmartcard(sn, ua, smartcardType, source, null);
+    }
+
+    public void preloadSmartcard(
+            String sn,
+            String ua,
+            SmartcardType smartcardType,
+            SmartcardSource source,
+            String caSn
+    ) {
         if (!properties.enabled()) {
             throw new NagraException(
                     null,
@@ -54,8 +64,17 @@ public class NagraSmartcardGateway {
 
         String accountId = sn + "_" + smartcardType.getNagraType();
 
+        String deviceCaSn =
+                SmartcardType.TIVU_HD_PAIRING.equals(smartcardType)
+                        ? caSn
+                        : null;
+
         AdmBundledAccountRequest request =
-                AdmBundledAccountRequest.preload(accountId, ua);
+                AdmBundledAccountRequest.preload(
+                        accountId,
+                        ua,
+                        deviceCaSn
+                );
 
         nagraAdmClient.createBundledAccount(source, sn, request);
     }
