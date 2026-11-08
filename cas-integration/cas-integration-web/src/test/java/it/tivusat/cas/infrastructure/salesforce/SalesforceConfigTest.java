@@ -9,7 +9,10 @@ class SalesforceConfigTest {
 
     private final ApplicationContextRunner contextRunner =
             new ApplicationContextRunner()
-                    .withUserConfiguration(SalesforceConfig.class);
+                    .withUserConfiguration(
+                            SalesforceConfig.class,
+                            SalesforceTokenProvider.class
+                    );
 
     @Test
     void shouldStartWithoutCredentialsWhenDisabled() {

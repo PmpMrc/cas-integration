@@ -6,7 +6,11 @@ public class SalesforceException extends RuntimeException {
         INTEGRATION_DISABLED,
         AUTHENTICATION_ERROR,
         NETWORK_ERROR,
-        INVALID_RESPONSE
+        INVALID_RESPONSE,
+        QUERY_ERROR,
+        SMARTCARD_NOT_FOUND,
+        AMBIGUOUS_SMARTCARD,
+        SMARTCARD_TYPE_MISSING
     }
 
     private final FailureType failureType;

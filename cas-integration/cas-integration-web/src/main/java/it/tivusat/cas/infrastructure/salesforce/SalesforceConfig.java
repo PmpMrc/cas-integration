@@ -36,4 +36,33 @@ public class SalesforceConfig {
 
         return new SalesforceOAuthClient(properties, restTemplate);
     }
+
+    @Bean
+    public SalesforceSmartcardClient salesforceSmartcardClient(
+            SalesforceProperties properties,
+            SalesforceTokenProvider tokenProvider
+    ) {
+        SimpleClientHttpRequestFactory requestFactory =
+                new SimpleClientHttpRequestFactory() {
+                    @Override
+                    protected void prepareConnection(
+                            HttpURLConnection connection,
+                            String httpMethod
+                    ) throws IOException {
+                        super.prepareConnection(connection, httpMethod);
+                        connection.setInstanceFollowRedirects(false);
+                    }
+                };
+
+        requestFactory.setConnectTimeout(properties.getConnectTimeoutMs());
+        requestFactory.setReadTimeout(properties.getReadTimeoutMs());
+
+        RestTemplate restTemplate = new RestTemplate(requestFactory);
+
+        return new SalesforceSmartcardClient(
+                properties,
+                tokenProvider,
+                restTemplate
+        );
+    }
 }
