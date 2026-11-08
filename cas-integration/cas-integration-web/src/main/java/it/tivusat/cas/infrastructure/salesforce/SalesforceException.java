@@ -10,7 +10,8 @@ public class SalesforceException extends RuntimeException {
         QUERY_ERROR,
         SMARTCARD_NOT_FOUND,
         AMBIGUOUS_SMARTCARD,
-        SMARTCARD_TYPE_MISSING
+        SMARTCARD_TYPE_MISSING,
+        UNSUPPORTED_SMARTCARD_TYPE
     }
 
     private final FailureType failureType;

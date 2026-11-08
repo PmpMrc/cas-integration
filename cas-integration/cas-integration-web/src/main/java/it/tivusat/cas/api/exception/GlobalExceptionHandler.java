@@ -8,6 +8,7 @@ import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
 import it.tivusat.cas.infrastructure.nagra.NagraException;
 import it.tivusat.cas.infrastructure.nagra.EntitlementValidationException;
 import it.tivusat.cas.infrastructure.nagra.NagraPartialFailureException;
+import it.tivusat.cas.infrastructure.salesforce.SalesforceException;
 import it.tivusat.cas.domain.exception.UnsupportedSmartcardRangeException;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.ConstraintViolationException;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -144,6 +146,83 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(ErrorResponse.withDetails(
                 status.value(), "NAGRA_ERROR", message, request.getRequestURI(), details
         ));
+    }
+
+    @ExceptionHandler(SalesforceException.class)
+    public ResponseEntity<ErrorResponse> handleSalesforceException(
+            SalesforceException ex,
+            HttpServletRequest request
+    ) {
+        HttpStatus status;
+        String message;
+
+        switch (ex.getFailureType()) {
+            case SMARTCARD_NOT_FOUND:
+                status = HttpStatus.NOT_FOUND;
+                message = "Smartcard was not found in Salesforce";
+                break;
+
+            case INTEGRATION_DISABLED:
+                status = HttpStatus.SERVICE_UNAVAILABLE;
+                message = "Salesforce integration is disabled";
+                break;
+
+            case NETWORK_ERROR:
+                status = HttpStatus.SERVICE_UNAVAILABLE;
+                message = "Salesforce could not be reached";
+                break;
+
+            case AUTHENTICATION_ERROR:
+                status = HttpStatus.BAD_GATEWAY;
+                message = "Salesforce authentication failed";
+                break;
+
+            case QUERY_ERROR:
+                status = HttpStatus.BAD_GATEWAY;
+                message = "Salesforce smartcard query failed";
+                break;
+
+            case AMBIGUOUS_SMARTCARD:
+                status = HttpStatus.BAD_GATEWAY;
+                message = "Salesforce returned multiple smartcards for the serial";
+                break;
+
+            case SMARTCARD_TYPE_MISSING:
+                status = HttpStatus.BAD_GATEWAY;
+                message = "Salesforce smartcard type is missing";
+                break;
+
+            case UNSUPPORTED_SMARTCARD_TYPE:
+                status = HttpStatus.BAD_GATEWAY;
+                message = "Salesforce smartcard type has no configured mapping";
+                break;
+
+            case INVALID_RESPONSE:
+            default:
+                status = HttpStatus.BAD_GATEWAY;
+                message = "Salesforce returned an invalid response";
+                break;
+        }
+
+        Map<String, String> details = new LinkedHashMap<>();
+        details.put("failureType", ex.getFailureType().name());
+
+        if (ex.getUpstreamHttpStatus() != null) {
+            details.put(
+                    "upstreamHttpStatus",
+                    String.valueOf(ex.getUpstreamHttpStatus())
+            );
+        }
+
+        return ResponseEntity.status(status).body(
+                ErrorResponse.withDetails(
+                        status.value(),
+                        "SALESFORCE_ERROR",
+                        message,
+                        request.getRequestURI(),
+                        details
+                )
+        );
     }
 
     private String readUpstreamError(String responseBody, Map<String, String> details) {

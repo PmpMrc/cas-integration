@@ -12,6 +12,7 @@ import it.tivusat.cas.infrastructure.nagra.NagraSmartcardStatusSnapshot;
 import it.tivusat.cas.infrastructure.nagra.dto.NagraDeviceResponse;
 import it.tivusat.cas.infrastructure.nagra.dto.NagraEntitlementResponse;
 import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
+import it.tivusat.cas.infrastructure.salesforce.SalesforceException;
 import org.mockito.ArgumentCaptor;
 import it.tivusat.cas.domain.SmartcardType;
 import it.tivusat.cas.domain.SmartcardValidator;
@@ -42,6 +43,9 @@ class SmartcardOperationsUseCaseTest {
     @Mock
     private NagraSmartcardGateway nagraSmartcardGateway;
 
+    @Mock
+    private SmartcardTypeResolver smartcardTypeResolver;
+
     private SmartcardOperationsUseCase useCase;
 
     @BeforeEach
@@ -49,7 +53,8 @@ class SmartcardOperationsUseCaseTest {
         useCase = new SmartcardOperationsUseCase(
                 new SmartcardValidator(),
                 new UaRangeClassifier(),
-                nagraSmartcardGateway
+                nagraSmartcardGateway,
+                smartcardTypeResolver
         );
     }
 
@@ -158,6 +163,8 @@ class SmartcardOperationsUseCaseTest {
                 SmartcardType.TIVU_HD,
                 SmartcardSource.PHYSICAL
         );
+
+        verifyNoInteractions(smartcardTypeResolver);
     }
 
     @Test
@@ -285,6 +292,7 @@ class SmartcardOperationsUseCaseTest {
                 Instant.parse("2026-11-05T09:00:00Z"),
                 response.getUpdatedAt()
         );
+        verifyNoInteractions(smartcardTypeResolver);
     }
 
     @Test
@@ -327,16 +335,70 @@ class SmartcardOperationsUseCaseTest {
     }
 
     @Test
-    void statusShouldRejectMissingTypeBeforeCallingNagra() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> useCase.getStatus(
-                        SN,
-                        SmartcardSource.PHYSICAL,
-                        null
-                )
+    void statusShouldUseResolvedTypeWhenMissing() throws Exception {
+        when(smartcardTypeResolver.resolve(SN, null))
+                .thenReturn(SmartcardType.TIVU_HD);
+
+        NagraBundledAccountResponse account =
+                new ObjectMapper().readValue(
+                        "{\"_id\":\"" + SN + "_TivuHD\","
+                                + "\"status\":\"ACTIVE\","
+                                + "\"devices\":[]}",
+                        NagraBundledAccountResponse.class
+                );
+
+        when(nagraSmartcardGateway.fetchSmartcardStatus(
+                SN,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL
+        )).thenReturn(NagraSmartcardStatusSnapshot.bundled(
+                account,
+                null,
+                null,
+                SmartcardStatus.PRELOADED
+        ));
+
+        SmartcardResponse response = useCase.getStatus(
+                SN,
+                SmartcardSource.PHYSICAL,
+                null
         );
 
+        assertEquals(SmartcardType.TIVU_HD, response.getSmartcardType());
+
+        verify(smartcardTypeResolver).resolve(SN, null);
+
+        verify(nagraSmartcardGateway).fetchSmartcardStatus(
+                SN,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL
+        );
+    }
+
+    @Test
+    void statusShouldStopBeforeNagraWhenTypeResolutionFails() {
+        it.tivusat.cas.infrastructure.salesforce.SalesforceException failure =
+                new it.tivusat.cas.infrastructure.salesforce.SalesforceException(
+                        it.tivusat.cas.infrastructure.salesforce.SalesforceException
+                                .FailureType.SMARTCARD_NOT_FOUND,
+                        "Smartcard was not found in Salesforce",
+                        null
+                );
+
+        when(smartcardTypeResolver.resolve(SN, null))
+                .thenThrow(failure);
+
+        it.tivusat.cas.infrastructure.salesforce.SalesforceException actual =
+                assertThrows(
+                        it.tivusat.cas.infrastructure.salesforce.SalesforceException.class,
+                        () -> useCase.getStatus(
+                                SN,
+                                SmartcardSource.PHYSICAL,
+                                null
+                        )
+                );
+
+        assertSame(failure, actual);
         verifyNoInteractions(nagraSmartcardGateway);
     }
 
@@ -382,19 +444,28 @@ class SmartcardOperationsUseCaseTest {
     }
 
     @Test
-    void refreshShouldRejectMissingTypeBeforeCallingNagra() {
+    void refreshShouldResolveMissingTypeBeforeCallingNagra() {
         ActivateSmartcardRequest request = new ActivateSmartcardRequest(
                 SmartcardSource.PHYSICAL,
                 null,
                 null
         );
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> useCase.refresh(SN, request)
-        );
+        when(smartcardTypeResolver.resolve(SN, null))
+                .thenReturn(SmartcardType.TIVU_HD);
 
-        verifyNoInteractions(nagraSmartcardGateway);
+        SmartcardResponse response = useCase.refresh(SN, request);
+
+        assertEquals(SmartcardType.TIVU_HD, response.getSmartcardType());
+        assertEquals(SmartcardStatus.ENABLED, response.getStatus());
+
+        verify(smartcardTypeResolver).resolve(SN, null);
+
+        verify(nagraSmartcardGateway).refreshSmartcard(
+                SN,
+                SmartcardType.TIVU_HD,
+                SmartcardSource.PHYSICAL
+        );
     }
 
     @Test
@@ -542,5 +613,31 @@ class SmartcardOperationsUseCaseTest {
                 SmartcardSource.VIRTUAL,
                 true
         );
+    }
+
+    @Test
+    void refreshShouldNotCallNagraWhenTypeResolutionFails() {
+        ActivateSmartcardRequest request = new ActivateSmartcardRequest(
+                SmartcardSource.PHYSICAL,
+                null,
+                null
+        );
+
+        SalesforceException failure = new SalesforceException(
+                SalesforceException.FailureType.SMARTCARD_NOT_FOUND,
+                "Smartcard was not found in Salesforce",
+                null
+        );
+
+        when(smartcardTypeResolver.resolve(SN, null))
+                .thenThrow(failure);
+
+        SalesforceException actual = assertThrows(
+                SalesforceException.class,
+                () -> useCase.refresh(SN, request)
+        );
+
+        assertSame(failure, actual);
+        verifyNoInteractions(nagraSmartcardGateway);
     }
 }

@@ -29,15 +29,18 @@ public class SmartcardOperationsUseCase {
     private final SmartcardValidator smartcardValidator;
     private final UaRangeClassifier uaRangeClassifier;
     private final NagraSmartcardGateway nagraSmartcardGateway;
+    private final SmartcardTypeResolver smartcardTypeResolver;
 
     public SmartcardOperationsUseCase(
             SmartcardValidator smartcardValidator,
             UaRangeClassifier uaRangeClassifier,
-            NagraSmartcardGateway nagraSmartcardGateway
+            NagraSmartcardGateway nagraSmartcardGateway,
+            SmartcardTypeResolver smartcardTypeResolver
     ) {
         this.smartcardValidator = smartcardValidator;
         this.uaRangeClassifier = uaRangeClassifier;
         this.nagraSmartcardGateway = nagraSmartcardGateway;
+        this.smartcardTypeResolver = smartcardTypeResolver;
     }
 
     public SmartcardResponse activate(
@@ -276,10 +279,7 @@ public class SmartcardOperationsUseCase {
             throw new IllegalArgumentException("source is required");
         }
         if (smartcardType == null) {
-            throw new IllegalArgumentException(
-                    "smartcardType is required for status; "
-                            + "Salesforce lookup is not available yet"
-            );
+            smartcardType = smartcardTypeResolver.resolve(sn, null);
         }
 
         NagraSmartcardStatusSnapshot snapshot =
@@ -327,15 +327,11 @@ public class SmartcardOperationsUseCase {
             String sn,
             SmartcardType requestedType
     ) {
-        if (requestedType == null) {
-            throw new IllegalArgumentException(
-                    "smartcardType is required for refresh of smartcard "
-                            + sn
-                            + "; Salesforce lookup is not available yet"
-            );
+        if (requestedType != null) {
+            return requestedType;
         }
 
-        return requestedType;
+        return smartcardTypeResolver.resolve(sn, null);
     }
 
     private SmartcardResponse baseResponse(

@@ -12,6 +12,7 @@ import it.tivusat.cas.domain.NagraOperation;
 import it.tivusat.cas.infrastructure.nagra.EntitlementValidationException;
 import it.tivusat.cas.infrastructure.nagra.NagraException;
 import it.tivusat.cas.infrastructure.nagra.NagraPartialFailureException;
+import it.tivusat.cas.infrastructure.salesforce.SalesforceException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -264,12 +265,23 @@ class SmartcardControllerTest {
     }
 
     @Test
-    void statusWithoutTypeShouldReturnBadRequest() throws Exception {
+    void statusWithoutTypeShouldDelegateToUseCase() throws Exception {
+        when(smartcardOperationsUseCase.getStatus(
+                SN,
+                SmartcardSource.PHYSICAL,
+                null
+        )).thenReturn(response(SmartcardStatus.ENABLED));
+
         mockMvc.perform(get("/api/v1/smartcards/" + SN + "/status")
                         .param("source", "PHYSICAL"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("ENABLED")));
 
-        org.mockito.Mockito.verifyNoInteractions(smartcardOperationsUseCase);
+        verify(smartcardOperationsUseCase).getStatus(
+                SN,
+                SmartcardSource.PHYSICAL,
+                null
+        );
     }
 
     @Test
@@ -400,6 +412,94 @@ class SmartcardControllerTest {
         );
     }
 
+    @Test
+    void statusShouldReturn404WhenSmartcardIsMissingInSalesforce()
+            throws Exception {
+
+        when(smartcardOperationsUseCase.getStatus(
+                SN,
+                SmartcardSource.PHYSICAL,
+                null
+        )).thenThrow(new SalesforceException(
+                SalesforceException.FailureType.SMARTCARD_NOT_FOUND,
+                "Smartcard was not found in Salesforce",
+                null
+        ));
+
+        mockMvc.perform(get("/api/v1/smartcards/" + SN + "/status")
+                        .param("source", "PHYSICAL"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status", is(404)))
+                .andExpect(jsonPath("$.error", is("SALESFORCE_ERROR")))
+                .andExpect(jsonPath(
+                        "$.details.failureType",
+                        is("SMARTCARD_NOT_FOUND")
+                ))
+                .andExpect(jsonPath(
+                        "$.details.upstreamHttpStatus"
+                ).doesNotExist());
+    }
+
+    @Test
+    void statusShouldReturn503WhenSalesforceCannotBeReached()
+            throws Exception {
+
+        when(smartcardOperationsUseCase.getStatus(
+                SN,
+                SmartcardSource.PHYSICAL,
+                null
+        )).thenThrow(new SalesforceException(
+                SalesforceException.FailureType.NETWORK_ERROR,
+                "Internal transport details",
+                null
+        ));
+
+        mockMvc.perform(get("/api/v1/smartcards/" + SN + "/status")
+                        .param("source", "PHYSICAL"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error", is("SALESFORCE_ERROR")))
+                .andExpect(jsonPath(
+                        "$.details.failureType",
+                        is("NETWORK_ERROR")
+                ))
+                .andExpect(jsonPath(
+                        "$.message",
+                        is("Salesforce could not be reached")
+                ));
+    }
+
+    @Test
+    void statusShouldReturn502ForSalesforceAuthenticationFailure()
+            throws Exception {
+
+        when(smartcardOperationsUseCase.getStatus(
+                SN,
+                SmartcardSource.PHYSICAL,
+                null
+        )).thenThrow(new SalesforceException(
+                SalesforceException.FailureType.AUTHENTICATION_ERROR,
+                "Sensitive upstream details that must not be returned",
+                401
+        ));
+
+        mockMvc.perform(get("/api/v1/smartcards/" + SN + "/status")
+                        .param("source", "PHYSICAL"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.error", is("SALESFORCE_ERROR")))
+                .andExpect(jsonPath(
+                        "$.details.failureType",
+                        is("AUTHENTICATION_ERROR")
+                ))
+                .andExpect(jsonPath(
+                        "$.details.upstreamHttpStatus",
+                        is("401")
+                ))
+                .andExpect(jsonPath(
+                        "$.message",
+                        is("Salesforce authentication failed")
+                ));
+    }
+
     private SmartcardResponse response(SmartcardStatus status) {
         return new SmartcardResponse(
                 SN,
@@ -416,6 +516,60 @@ class SmartcardControllerTest {
                 Instant.parse("2026-01-01T00:00:00Z"),
                 Instant.parse("2026-01-01T00:00:00Z")
         );
+    }
+
+    @Test
+    void refreshWithoutTypeShouldReturnAccepted() throws Exception {
+        when(smartcardOperationsUseCase.refresh(eq(SN), any()))
+                .thenReturn(response(SmartcardStatus.ENABLED));
+
+        mockMvc.perform(post("/api/v1/smartcards/" + SN + "/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source\":\"PHYSICAL\"}"))
+                .andExpect(status().isAccepted());
+
+        verify(smartcardOperationsUseCase).refresh(
+                eq(SN),
+                org.mockito.ArgumentMatchers.argThat(request ->
+                        request.source() == SmartcardSource.PHYSICAL
+                                && request.smartcardType() == null
+                )
+        );
+    }
+
+    @Test
+    void refreshWithoutSourceShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/smartcards/" + SN + "/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"smartcardType\":\"TIVU_HD\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", is("VALIDATION_ERROR")));
+
+        org.mockito.Mockito.verifyNoInteractions(smartcardOperationsUseCase);
+    }
+
+    @Test
+    void activateWithoutTypeShouldStillReturnBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/smartcards/" + SN + "/activate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source\":\"PHYSICAL\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", is("VALIDATION_ERROR")));
+
+        org.mockito.Mockito.verifyNoInteractions(smartcardOperationsUseCase);
+    }
+
+    @Test
+    void refreshWithUnknownTypeShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/smartcards/" + SN + "/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                "{\"source\":\"PHYSICAL\","
+                                        + "\"smartcardType\":\"UNKNOWN_TYPE\"}"
+                        ))
+                .andExpect(status().isBadRequest());
+
+        org.mockito.Mockito.verifyNoInteractions(smartcardOperationsUseCase);
     }
 
 

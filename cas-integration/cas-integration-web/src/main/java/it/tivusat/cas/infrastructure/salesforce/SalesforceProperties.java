@@ -2,6 +2,10 @@ package it.tivusat.cas.infrastructure.salesforce;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import it.tivusat.cas.domain.SmartcardType;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @ConfigurationProperties(prefix = "salesforce")
 public class SalesforceProperties implements InitializingBean {
@@ -14,6 +18,7 @@ public class SalesforceProperties implements InitializingBean {
 
     private int connectTimeoutMs = 5000;
     private int readTimeoutMs = 15000;
+    private Map<String, SmartcardType> typeMapping = new LinkedHashMap<>();
 
     @Override
     public void afterPropertiesSet() {
@@ -46,6 +51,16 @@ public class SalesforceProperties implements InitializingBean {
                     propertyName + " is required when Salesforce is enabled"
             );
         }
+    }
+
+    public Map<String, SmartcardType> getTypeMapping() {
+        return typeMapping;
+    }
+
+    public void setTypeMapping(Map<String, SmartcardType> typeMapping) {
+        this.typeMapping = typeMapping == null
+                ? new LinkedHashMap<>()
+                : new LinkedHashMap<>(typeMapping);
     }
 
     public boolean isEnabled() {

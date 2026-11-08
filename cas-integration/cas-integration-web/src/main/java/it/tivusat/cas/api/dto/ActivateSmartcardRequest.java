@@ -3,11 +3,12 @@ package it.tivusat.cas.api.dto;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardType;
 
+import javax.validation.groups.Default;
 import javax.validation.constraints.NotNull;
 
 public class ActivateSmartcardRequest {
 
-    @NotNull
+    @NotNull(groups = {Default.class, RefreshValidation.class})
     private SmartcardSource source;
 
     @NotNull
@@ -16,6 +17,9 @@ public class ActivateSmartcardRequest {
     private String caSn;
 
     public ActivateSmartcardRequest() {
+    }
+
+    public interface RefreshValidation {
     }
 
     public ActivateSmartcardRequest(SmartcardSource source, SmartcardType smartcardType, String caSn) {

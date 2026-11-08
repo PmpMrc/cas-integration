@@ -15,6 +15,7 @@ import it.tivusat.cas.api.dto.ImportSmartcardsResponse;
 import it.tivusat.cas.application.SmartcardImportService;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 
@@ -58,7 +59,8 @@ public class SmartcardController {
     @PostMapping("/{sn}/refresh")
     public ResponseEntity<SmartcardResponse> refresh(
             @PathVariable("sn") String sn,
-            @Valid @RequestBody ActivateSmartcardRequest request
+            @Validated(ActivateSmartcardRequest.RefreshValidation.class)
+            @RequestBody ActivateSmartcardRequest request
     ) {
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
@@ -114,7 +116,7 @@ public class SmartcardController {
     public ResponseEntity<SmartcardResponse> status(
             @PathVariable("sn") String sn,
             @RequestParam("source") SmartcardSource source,
-            @RequestParam("smartcardType") SmartcardType smartcardType
+            @RequestParam(value = "smartcardType", required = false) SmartcardType smartcardType
     ) {
         return ResponseEntity.ok(
                 smartcardOperationsUseCase.getStatus(
