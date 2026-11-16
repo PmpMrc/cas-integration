@@ -101,8 +101,11 @@ public class SmartcardOperationsUseCase {
             throw new IllegalArgumentException("source is required");
         }
 
-        SmartcardType smartcardType =
-                resolveRefreshSmartcardType(sn, request.smartcardType());
+        SmartcardType smartcardType = resolveRefreshSmartcardType(
+                sn,
+                request.source(),
+                request.smartcardType()
+        );
 
         nagraSmartcardGateway.refreshSmartcard(
                 sn,
@@ -175,34 +178,26 @@ public class SmartcardOperationsUseCase {
             SmartcardSource source,
             SmartcardType smartcardType
     ) {
-        return delete(sn, source, smartcardType, false);
-    }
-
-    public SmartcardResponse delete(
-            String sn,
-            SmartcardSource source,
-            SmartcardType smartcardType,
-            boolean purgeForReuse
-    ) {
         if (source == null) {
             throw new IllegalArgumentException("source is required");
         }
+
         if (smartcardType == null) {
             throw new IllegalArgumentException("smartcardType is required");
-        }
-        if (purgeForReuse && source != SmartcardSource.VIRTUAL) {
-            throw new IllegalArgumentException(
-                    "purgeForReuse is allowed only for virtual smartcards"
-            );
         }
 
         String ua = validateSnAndExtractUa(sn);
 
+        boolean virtual = source == SmartcardSource.VIRTUAL;
+
+        SmartcardType effectiveType = virtual
+                ? SmartcardType.TIVU_VIRTUAL
+                : smartcardType;
+
         nagraSmartcardGateway.deleteSmartcard(
                 sn,
-                smartcardType,
-                source,
-                purgeForReuse
+                effectiveType,
+                source
         );
 
         Instant now = Instant.now()
@@ -211,11 +206,11 @@ public class SmartcardOperationsUseCase {
         return new SmartcardResponse(
                 sn,
                 ua,
-                smartcardType,
+                effectiveType,
                 source,
                 SmartcardStatus.DELETED,
-                !purgeForReuse,
-                !purgeForReuse,
+                !virtual,
+                !virtual,
                 null,
                 null,
                 null,
@@ -278,8 +273,17 @@ public class SmartcardOperationsUseCase {
         if (source == null) {
             throw new IllegalArgumentException("source is required");
         }
+
+        String crmVirtualState = null;
+
         if (smartcardType == null) {
-            smartcardType = smartcardTypeResolver.resolve(sn, null);
+            ResolvedSmartcardData resolved =
+                    smartcardTypeResolver.resolveForStatus(sn, source);
+
+            smartcardType = resolved.getSmartcardType();
+            crmVirtualState = resolved.getCrmVirtualState();
+        } else if (source == SmartcardSource.VIRTUAL) {
+            smartcardType = SmartcardType.TIVU_VIRTUAL;
         }
 
         NagraSmartcardStatusSnapshot snapshot =
@@ -292,7 +296,7 @@ public class SmartcardOperationsUseCase {
         NagraBundledDeviceResponse device = snapshot.bundledDevice();
         NagraEntitlementResponse entitlement = snapshot.entitlement();
 
-        return new SmartcardResponse(
+        SmartcardResponse response = new SmartcardResponse(
                 sn,
                 ua,
                 smartcardType,
@@ -307,6 +311,10 @@ public class SmartcardOperationsUseCase {
                 snapshot.account().getCreatedAt(),
                 snapshot.account().getUpdatedAt()
         );
+
+        response.setCrmVirtualState(crmVirtualState);
+
+        return response;
     }
 
     private String validateSnAndExtractUa(String sn) {
@@ -325,8 +333,13 @@ public class SmartcardOperationsUseCase {
 
     private SmartcardType resolveRefreshSmartcardType(
             String sn,
+            SmartcardSource source,
             SmartcardType requestedType
     ) {
+        if (source == SmartcardSource.VIRTUAL) {
+            return SmartcardType.TIVU_VIRTUAL;
+        }
+
         if (requestedType != null) {
             return requestedType;
         }

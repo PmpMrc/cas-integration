@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardStatus;
 import it.tivusat.cas.domain.SmartcardType;
+import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
 import it.tivusat.cas.infrastructure.nagra.dto.NagraBundledAccountResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -174,6 +175,77 @@ class NagraBundledStatusGatewayTest {
         );
 
         assertSame(failure, actual);
+    }
+
+    @Test
+    void shouldReportMissingSmartcardWhenAccountReturns404() {
+        when(adm.getBundledAccount(SOURCE, SN, ACCOUNT_ID))
+                .thenThrow(new NagraException(
+                        404,
+                        "Account not found"
+                ));
+
+        assertThrows(
+                SmartcardNotFoundException.class,
+                this::fetch
+        );
+
+        verify(adm).getBundledAccount(SOURCE, SN, ACCOUNT_ID);
+        verifyNoInteractions(rmg);
+    }
+
+    @Test
+    void shouldKeepPreloadedStatusWhenEntitlementReturns404()
+            throws Exception {
+
+        when(adm.getBundledAccount(SOURCE, SN, ACCOUNT_ID))
+                .thenReturn(read(
+                        "{\"_id\":\"" + ACCOUNT_ID + "\","
+                                + "\"status\":\"ACTIVE\","
+                                + "\"devices\":[{"
+                                + "\"deviceId\":\"" + ACCOUNT_ID + "\","
+                                + "\"device_status\":\"DISABLED\""
+                                + "}]}"
+                ));
+
+        when(rmg.getEntitlementsByAccountId(SOURCE, SN, ACCOUNT_ID))
+                .thenThrow(new NagraException(
+                        404,
+                        "Entitlement not found"
+                ));
+
+        NagraSmartcardStatusSnapshot snapshot = fetch();
+
+        assertEquals(SmartcardStatus.PRELOADED, snapshot.status());
+        assertNotNull(snapshot.account());
+        assertNotNull(snapshot.bundledDevice());
+        assertNull(snapshot.entitlement());
+    }
+
+    @Test
+    void shouldNotConvertEnabledCardToPreloadedWhenEntitlementReturns404()
+            throws Exception {
+
+        when(adm.getBundledAccount(SOURCE, SN, ACCOUNT_ID))
+                .thenReturn(read(
+                        "{\"_id\":\"" + ACCOUNT_ID + "\","
+                                + "\"status\":\"ACTIVE\","
+                                + "\"devices\":[{"
+                                + "\"deviceId\":\"" + ACCOUNT_ID + "\","
+                                + "\"device_status\":\"ENABLED\""
+                                + "}]}"
+                ));
+
+        when(rmg.getEntitlementsByAccountId(SOURCE, SN, ACCOUNT_ID))
+                .thenThrow(new NagraException(
+                        404,
+                        "Entitlement not found"
+                ));
+
+        NagraSmartcardStatusSnapshot snapshot = fetch();
+
+        assertEquals(SmartcardStatus.ENABLED, snapshot.status());
+        assertNull(snapshot.entitlement());
     }
 
     private NagraBundledAccountResponse read(String json) throws Exception {

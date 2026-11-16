@@ -3,6 +3,7 @@ package it.tivusat.cas.api.dto;
 import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardStatus;
 import it.tivusat.cas.domain.SmartcardType;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
 
@@ -18,6 +19,7 @@ public class SmartcardResponse {
     private String entitlementId;
     private String productId;
     private String caSn;
+    private String crmVirtualState;
     private Instant expiryDate;
     private Instant createdAt;
     private Instant updatedAt;
@@ -106,4 +108,10 @@ public class SmartcardResponse {
     public Instant getUpdatedAt() {
         return updatedAt;
     }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public String getCrmVirtualState() { return crmVirtualState; }
+
+    public void setCrmVirtualState(String crmVirtualState) { this.crmVirtualState = crmVirtualState; }
+
 }

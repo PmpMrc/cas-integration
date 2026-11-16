@@ -35,6 +35,10 @@ public class SalesforceSmartcardClient {
     }
 
     public String findSmartcardType(String sn) {
+        return findSmartcard(sn).getSmartcardType();
+    }
+
+    public SalesforceSmartcardData findSmartcard(String sn) {
         if (sn == null || !sn.matches("[0-9]{12}")) {
             throw new IllegalArgumentException(
                     "Smartcard serial must contain exactly 12 digits"
@@ -76,7 +80,7 @@ public class SalesforceSmartcardClient {
         throw new IllegalStateException("Unexpected Salesforce query state");
     }
 
-    private String executeQuery(
+    private SalesforceSmartcardData executeQuery(
             String sn,
             SalesforceTokenResponse token
     ) {
@@ -92,7 +96,7 @@ public class SalesforceSmartcardClient {
         }
 
         String query =
-                "SELECT Id, Tipologia_Smart_Card__c "
+                "SELECT Id, Tipologia_Smartcard__c, Stato_Smartcard_Virtuale__c "
                         + "FROM Smartcard__c "
                         + "WHERE Seriale_Smart_Card__c = '" + sn + "' "
                         + "LIMIT 2";
@@ -130,10 +134,10 @@ public class SalesforceSmartcardClient {
             );
         }
 
-        return extractType(response.getBody());
+        return extractSmartcard(response.getBody());
     }
 
-    private String extractType(JsonNode body) {
+    private SalesforceSmartcardData extractSmartcard(JsonNode body) {
         if (body == null || !body.isObject()) {
             throw invalidResponse();
         }
@@ -161,8 +165,6 @@ public class SalesforceSmartcardClient {
             );
         }
 
-        // Con LIMIT 2 ci aspettiamo una risposta completa.
-        // Non selezioniamo un risultato da una risposta incompleta.
         if (!done.booleanValue()
                 || totalSize.intValue() != records.size()) {
             throw invalidResponse();
@@ -182,23 +184,34 @@ public class SalesforceSmartcardClient {
             throw invalidResponse();
         }
 
-        JsonNode type = record.get("Tipologia_Smart_Card__c");
+        JsonNode type = record.get("Tipologia_Smartcard__c");
 
-        if (type == null
-                || type.isNull()
-                || (type.isTextual() && type.asText().trim().isEmpty())) {
-            throw new SalesforceException(
-                    SalesforceException.FailureType.SMARTCARD_TYPE_MISSING,
-                    "Salesforce smartcard type is missing",
-                    null
-            );
-        }
-
-        if (!type.isTextual()) {
+        if (type != null && !type.isNull() && !type.isTextual()) {
             throw invalidResponse();
         }
 
-        return type.asText().trim();
+        JsonNode virtualState = record.get("Stato_Smartcard_Virtuale__c");
+
+        if (virtualState != null
+                && !virtualState.isNull()
+                && !virtualState.isTextual()) {
+            throw invalidResponse();
+        }
+
+        String smartcardType =
+                type == null || type.isNull()
+                        ? null
+                        : type.asText().trim();
+
+        String crmVirtualState =
+                virtualState == null || virtualState.isNull()
+                        ? null
+                        : virtualState.asText();
+
+        return new SalesforceSmartcardData(
+                smartcardType,
+                crmVirtualState
+        );
     }
 
     private boolean isInvalidSession(RestClientResponseException ex) {

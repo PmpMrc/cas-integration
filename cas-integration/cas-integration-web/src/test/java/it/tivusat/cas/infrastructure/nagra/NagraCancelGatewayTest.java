@@ -13,6 +13,7 @@ class NagraCancelGatewayTest {
 
     private static final String SN = "109687603246";
     private static final String ACCOUNT_ID = SN + "_TivuHD";
+    private static final String VIRTUAL_ACCOUNT_ID = SN + "_TivuVirtual";
 
     private NagraProperties properties;
     private NagraAdmClient adm;
@@ -99,39 +100,25 @@ class NagraCancelGatewayTest {
     }
 
     @Test
-    void shouldCancelVirtualAccountWithoutPurgeByDefault() {
+    void shouldAutomaticallyCancelThenPurgeVirtualAccount() {
         gateway.deleteSmartcard(
                 SN,
-                SmartcardType.TIVU_HD,
+                SmartcardType.TIVU_VIRTUAL,
                 SmartcardSource.VIRTUAL
-        );
-
-        verify(adm).cancelAccount(
-                SmartcardSource.VIRTUAL,
-                SN,
-                ACCOUNT_ID
-        );
-
-        verifyNoMoreInteractions(adm);
-        verifyNoInteractions(rmg);
-    }
-
-    @Test
-    void shouldCancelBeforePurgingVirtualAccount() {
-        gateway.deleteSmartcard(
-                SN,
-                SmartcardType.TIVU_HD,
-                SmartcardSource.VIRTUAL,
-                true
         );
 
         org.mockito.InOrder order = inOrder(adm);
 
         order.verify(adm).cancelAccount(
-                SmartcardSource.VIRTUAL, SN, ACCOUNT_ID
+                SmartcardSource.VIRTUAL,
+                SN,
+                VIRTUAL_ACCOUNT_ID
         );
+
         order.verify(adm).purgeAccount(
-                SmartcardSource.VIRTUAL, SN, ACCOUNT_ID
+                SmartcardSource.VIRTUAL,
+                SN,
+                VIRTUAL_ACCOUNT_ID
         );
 
         verifyNoMoreInteractions(adm);
@@ -144,23 +131,22 @@ class NagraCancelGatewayTest {
                 new NagraException(503, "Simulated cancellation failure");
 
         doThrow(failure).when(adm).cancelAccount(
-                SmartcardSource.VIRTUAL, SN, ACCOUNT_ID
+                SmartcardSource.VIRTUAL, SN, VIRTUAL_ACCOUNT_ID
         );
 
         NagraException actual = assertThrows(
                 NagraException.class,
                 () -> gateway.deleteSmartcard(
                         SN,
-                        SmartcardType.TIVU_HD,
-                        SmartcardSource.VIRTUAL,
-                        true
+                        SmartcardType.TIVU_VIRTUAL,
+                        SmartcardSource.VIRTUAL
                 )
         );
 
         assertSame(failure, actual);
 
         verify(adm).cancelAccount(
-                SmartcardSource.VIRTUAL, SN, ACCOUNT_ID
+                SmartcardSource.VIRTUAL, SN, VIRTUAL_ACCOUNT_ID
         );
 
         verifyNoMoreInteractions(adm);
@@ -174,21 +160,20 @@ class NagraCancelGatewayTest {
                 "Simulated purge failure",
                 null,
                 NagraOperation.ADM_PURGE_ACCOUNT,
-                "/adm/v1/accounts/actions/purgeAccount/" + ACCOUNT_ID,
+                "/adm/v1/accounts/actions/purgeAccount/" + VIRTUAL_ACCOUNT_ID,
                 NagraException.FailureType.HTTP_ERROR
         );
 
         doThrow(failure).when(adm).purgeAccount(
-                SmartcardSource.VIRTUAL, SN, ACCOUNT_ID
+                SmartcardSource.VIRTUAL, SN, VIRTUAL_ACCOUNT_ID
         );
 
         NagraPartialFailureException actual = assertThrows(
                 NagraPartialFailureException.class,
                 () -> gateway.deleteSmartcard(
                         SN,
-                        SmartcardType.TIVU_HD,
-                        SmartcardSource.VIRTUAL,
-                        true
+                        SmartcardType.TIVU_VIRTUAL,
+                        SmartcardSource.VIRTUAL
                 )
         );
 
@@ -205,29 +190,14 @@ class NagraCancelGatewayTest {
         org.mockito.InOrder order = inOrder(adm);
 
         order.verify(adm).cancelAccount(
-                SmartcardSource.VIRTUAL, SN, ACCOUNT_ID
+                SmartcardSource.VIRTUAL, SN, VIRTUAL_ACCOUNT_ID
         );
         order.verify(adm).purgeAccount(
-                SmartcardSource.VIRTUAL, SN, ACCOUNT_ID
+                SmartcardSource.VIRTUAL, SN, VIRTUAL_ACCOUNT_ID
         );
 
         verifyNoMoreInteractions(adm);
         verifyNoInteractions(rmg);
-    }
-
-    @Test
-    void shouldRejectPurgeForPhysicalSourceWithoutCalls() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> gateway.deleteSmartcard(
-                        SN,
-                        SmartcardType.TIVU_HD,
-                        SmartcardSource.PHYSICAL,
-                        true
-                )
-        );
-
-        verifyNoInteractions(adm, rmg);
     }
 
     private void cancel() {

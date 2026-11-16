@@ -9,6 +9,7 @@ import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardStatus;
 import it.tivusat.cas.domain.SmartcardType;
 import it.tivusat.cas.domain.NagraOperation;
+import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
 import it.tivusat.cas.infrastructure.nagra.EntitlementValidationException;
 import it.tivusat.cas.infrastructure.nagra.NagraException;
 import it.tivusat.cas.infrastructure.nagra.NagraPartialFailureException;
@@ -225,8 +226,7 @@ class SmartcardControllerTest {
         when(smartcardOperationsUseCase.delete(
                 eq(SN),
                 eq(SmartcardSource.PHYSICAL),
-                eq(SmartcardType.TIVU_HD),
-                eq(false)
+                eq(SmartcardType.TIVU_HD)
         )).thenReturn(response(SmartcardStatus.DELETED));
 
         mockMvc.perform(delete("/api/v1/smartcards/" + SN)
@@ -238,8 +238,7 @@ class SmartcardControllerTest {
         verify(smartcardOperationsUseCase).delete(
                 SN,
                 SmartcardSource.PHYSICAL,
-                SmartcardType.TIVU_HD,
-                false
+                SmartcardType.TIVU_HD
         );
     }
 
@@ -255,6 +254,7 @@ class SmartcardControllerTest {
                         .param("source", "PHYSICAL")
                         .param("smartcardType", "TIVU_HD"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.crmVirtualState").doesNotExist())
                 .andExpect(jsonPath("$.status", is("ENABLED")));
 
         org.mockito.Mockito.verify(smartcardOperationsUseCase).getStatus(
@@ -390,25 +390,22 @@ class SmartcardControllerTest {
     }
 
     @Test
-    void deleteShouldForwardExplicitPurgeOption() throws Exception {
+    void deleteVirtualShouldNotRequirePurgeOption() throws Exception {
         when(smartcardOperationsUseCase.delete(
-                eq(SN),
-                eq(SmartcardSource.VIRTUAL),
-                eq(SmartcardType.TIVU_HD),
-                eq(true)
+                SN,
+                SmartcardSource.VIRTUAL,
+                SmartcardType.TIVU_VIRTUAL
         )).thenReturn(response(SmartcardStatus.DELETED));
 
         mockMvc.perform(delete("/api/v1/smartcards/" + SN)
                         .param("source", "VIRTUAL")
-                        .param("smartcardType", "TIVU_HD")
-                        .param("purgeForReuse", "true"))
+                        .param("smartcardType", "TIVU_VIRTUAL"))
                 .andExpect(status().isAccepted());
 
-        org.mockito.Mockito.verify(smartcardOperationsUseCase).delete(
+        verify(smartcardOperationsUseCase).delete(
                 SN,
                 SmartcardSource.VIRTUAL,
-                SmartcardType.TIVU_HD,
-                true
+                SmartcardType.TIVU_VIRTUAL
         );
     }
 
@@ -497,6 +494,45 @@ class SmartcardControllerTest {
                 .andExpect(jsonPath(
                         "$.message",
                         is("Salesforce authentication failed")
+                ));
+    }
+
+    @Test
+    void statusShouldReturn404WhenNagraAccountIsMissing() throws Exception {
+        when(smartcardOperationsUseCase.getStatus(
+                SN,
+                SmartcardSource.PHYSICAL,
+                SmartcardType.TIVU_HD
+        )).thenThrow(new SmartcardNotFoundException(SN));
+
+        mockMvc.perform(get("/api/v1/smartcards/" + SN + "/status")
+                        .param("source", "PHYSICAL")
+                        .param("smartcardType", "TIVU_HD"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status", is(404)))
+                .andExpect(jsonPath(
+                        "$.error",
+                        is("SMARTCARD_NOT_FOUND")
+                ));
+    }
+
+    @Test
+    void statusShouldExposeCrmVirtualState() throws Exception {
+        SmartcardResponse result = response(SmartcardStatus.ENABLED);
+        result.setCrmVirtualState("CRM_STATE_TEST");
+
+        when(smartcardOperationsUseCase.getStatus(
+                SN,
+                SmartcardSource.PHYSICAL,
+                null
+        )).thenReturn(result);
+
+        mockMvc.perform(get("/api/v1/smartcards/" + SN + "/status")
+                        .param("source", "PHYSICAL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.crmVirtualState",
+                        is("CRM_STATE_TEST")
                 ));
     }
 

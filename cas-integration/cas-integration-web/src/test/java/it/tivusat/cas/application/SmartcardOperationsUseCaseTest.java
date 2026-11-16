@@ -223,9 +223,7 @@ class SmartcardOperationsUseCaseTest {
         verify(nagraSmartcardGateway).deleteSmartcard(
                 SN,
                 SmartcardType.TIVU_HD,
-                SmartcardSource.PHYSICAL,
-                false
-        );
+                SmartcardSource.PHYSICAL        );
     }
 
     @Test
@@ -293,6 +291,7 @@ class SmartcardOperationsUseCaseTest {
                 response.getUpdatedAt()
         );
         verifyNoInteractions(smartcardTypeResolver);
+        assertNull(response.getCrmVirtualState());
     }
 
     @Test
@@ -336,8 +335,13 @@ class SmartcardOperationsUseCaseTest {
 
     @Test
     void statusShouldUseResolvedTypeWhenMissing() throws Exception {
-        when(smartcardTypeResolver.resolve(SN, null))
-                .thenReturn(SmartcardType.TIVU_HD);
+        when(smartcardTypeResolver.resolveForStatus(
+                SN,
+                SmartcardSource.PHYSICAL
+        )).thenReturn(new ResolvedSmartcardData(
+                SmartcardType.TIVU_HD,
+                "CRM_STATE_TEST"
+        ));
 
         NagraBundledAccountResponse account =
                 new ObjectMapper().readValue(
@@ -366,31 +370,38 @@ class SmartcardOperationsUseCaseTest {
 
         assertEquals(SmartcardType.TIVU_HD, response.getSmartcardType());
 
-        verify(smartcardTypeResolver).resolve(SN, null);
+        verify(smartcardTypeResolver).resolveForStatus(
+                SN,
+                SmartcardSource.PHYSICAL
+        );
 
         verify(nagraSmartcardGateway).fetchSmartcardStatus(
                 SN,
                 SmartcardType.TIVU_HD,
                 SmartcardSource.PHYSICAL
         );
+
+        assertEquals("CRM_STATE_TEST", response.getCrmVirtualState());
     }
 
     @Test
     void statusShouldStopBeforeNagraWhenTypeResolutionFails() {
-        it.tivusat.cas.infrastructure.salesforce.SalesforceException failure =
-                new it.tivusat.cas.infrastructure.salesforce.SalesforceException(
-                        it.tivusat.cas.infrastructure.salesforce.SalesforceException
+        SalesforceException failure =
+                new SalesforceException(
+                        SalesforceException
                                 .FailureType.SMARTCARD_NOT_FOUND,
                         "Smartcard was not found in Salesforce",
                         null
                 );
 
-        when(smartcardTypeResolver.resolve(SN, null))
-                .thenThrow(failure);
+        when(smartcardTypeResolver.resolveForStatus(
+                SN,
+                SmartcardSource.PHYSICAL
+        )).thenThrow(failure);
 
-        it.tivusat.cas.infrastructure.salesforce.SalesforceException actual =
+        SalesforceException actual =
                 assertThrows(
-                        it.tivusat.cas.infrastructure.salesforce.SalesforceException.class,
+                        SalesforceException.class,
                         () -> useCase.getStatus(
                                 SN,
                                 SmartcardSource.PHYSICAL,
@@ -422,7 +433,7 @@ class SmartcardOperationsUseCaseTest {
                 )
         );
 
-        org.junit.jupiter.api.Assertions.assertSame(failure, actual);
+        assertSame(failure, actual);
     }
 
     @Test
@@ -511,7 +522,7 @@ class SmartcardOperationsUseCaseTest {
                 () -> useCase.refresh(SN, request)
         );
 
-        org.junit.jupiter.api.Assertions.assertSame(failure, actual);
+        assertSame(failure, actual);
     }
 
     @Test
@@ -580,38 +591,45 @@ class SmartcardOperationsUseCaseTest {
     }
 
     @Test
-    void deleteShouldRejectPurgeForPhysicalSource() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> useCase.delete(
-                        SN,
-                        SmartcardSource.PHYSICAL,
-                        SmartcardType.TIVU_HD,
-                        true
-                )
-        );
-
-        verifyNoInteractions(nagraSmartcardGateway);
-    }
-
-    @Test
-    void deleteWithPurgeShouldReturnAccountAndDeviceAbsent() {
+    void deleteVirtualShouldReturnAccountAndDeviceAbsent() {
         SmartcardResponse response = useCase.delete(
                 SN,
                 SmartcardSource.VIRTUAL,
-                SmartcardType.TIVU_HD,
-                true
+                SmartcardType.TIVU_VIRTUAL
         );
 
         assertEquals(SmartcardStatus.DELETED, response.getStatus());
-        assertEquals(false, response.isAccountCreated());
-        assertEquals(false, response.isDeviceCreated());
+        assertEquals(
+                SmartcardType.TIVU_VIRTUAL,
+                response.getSmartcardType()
+        );
+        assertFalse(response.isAccountCreated());
+        assertFalse(response.isDeviceCreated());
 
         verify(nagraSmartcardGateway).deleteSmartcard(
                 SN,
-                SmartcardType.TIVU_HD,
+                SmartcardType.TIVU_VIRTUAL,
+                SmartcardSource.VIRTUAL
+        );
+    }
+
+    @Test
+    void deleteVirtualShouldAlwaysUseVirtualType() {
+        SmartcardResponse response = useCase.delete(
+                SN,
                 SmartcardSource.VIRTUAL,
-                true
+                SmartcardType.TIVU_HD
+        );
+
+        assertEquals(
+                SmartcardType.TIVU_VIRTUAL,
+                response.getSmartcardType()
+        );
+
+        verify(nagraSmartcardGateway).deleteSmartcard(
+                SN,
+                SmartcardType.TIVU_VIRTUAL,
+                SmartcardSource.VIRTUAL
         );
     }
 
@@ -639,5 +657,56 @@ class SmartcardOperationsUseCaseTest {
 
         assertSame(failure, actual);
         verifyNoInteractions(nagraSmartcardGateway);
+    }
+
+    @Test
+    void refreshVirtualWithoutTypeShouldNotCallSalesforce() {
+        ActivateSmartcardRequest request = new ActivateSmartcardRequest(
+                SmartcardSource.VIRTUAL,
+                null,
+                null
+        );
+
+        SmartcardResponse response = useCase.refresh(SN, request);
+
+        assertEquals(
+                SmartcardType.TIVU_VIRTUAL,
+                response.getSmartcardType()
+        );
+        assertEquals(SmartcardStatus.ENABLED, response.getStatus());
+        assertNull(response.getCrmVirtualState());
+
+        verify(nagraSmartcardGateway).refreshSmartcard(
+                SN,
+                SmartcardType.TIVU_VIRTUAL,
+                SmartcardSource.VIRTUAL
+        );
+
+        verifyNoInteractions(smartcardTypeResolver);
+    }
+
+    @Test
+    void refreshVirtualShouldAlwaysUseVirtualType() {
+        ActivateSmartcardRequest request = new ActivateSmartcardRequest(
+                SmartcardSource.VIRTUAL,
+                SmartcardType.TIVU_HD,
+                null
+        );
+
+        SmartcardResponse response = useCase.refresh(SN, request);
+
+        assertEquals(
+                SmartcardType.TIVU_VIRTUAL,
+                response.getSmartcardType()
+        );
+        assertNull(response.getCrmVirtualState());
+
+        verify(nagraSmartcardGateway).refreshSmartcard(
+                SN,
+                SmartcardType.TIVU_VIRTUAL,
+                SmartcardSource.VIRTUAL
+        );
+
+        verifyNoInteractions(smartcardTypeResolver);
     }
 }

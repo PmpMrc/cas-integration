@@ -1,5 +1,6 @@
 package it.tivusat.cas.infrastructure.nagra;
 
+import it.tivusat.cas.domain.exception.SmartcardNotFoundException;
 import it.tivusat.cas.infrastructure.nagra.dto.RmgEntitlementRequest;
 import it.tivusat.cas.domain.NagraOperation;
 import it.tivusat.cas.domain.SmartcardSource;
@@ -240,25 +241,12 @@ public class NagraSmartcardGateway {
             SmartcardType smartcardType,
             SmartcardSource source
     ) {
-        deleteSmartcard(sn, smartcardType, source, false);
-    }
-
-    public void deleteSmartcard(
-            String sn,
-            SmartcardType smartcardType,
-            SmartcardSource source,
-            boolean purgeForReuse
-    ) {
         if (smartcardType == null) {
             throw new IllegalArgumentException("smartcardType is required");
         }
+
         if (source == null) {
             throw new IllegalArgumentException("source is required");
-        }
-        if (purgeForReuse && source != SmartcardSource.VIRTUAL) {
-            throw new IllegalArgumentException(
-                    "purgeForReuse is allowed only for virtual smartcards"
-            );
         }
 
         if (!properties.enabled()) {
@@ -272,7 +260,13 @@ public class NagraSmartcardGateway {
             );
         }
 
-        String accountId = sn + "_" + smartcardType.getNagraType();
+        boolean virtual = source == SmartcardSource.VIRTUAL;
+
+        SmartcardType effectiveType = virtual
+                ? SmartcardType.TIVU_VIRTUAL
+                : smartcardType;
+
+        String accountId = sn + "_" + effectiveType.getNagraType();
 
         nagraAdmClient.cancelAccount(
                 source,
@@ -280,7 +274,7 @@ public class NagraSmartcardGateway {
                 accountId
         );
 
-        if (purgeForReuse) {
+        if (virtual) {
             try {
                 nagraAdmClient.purgeAccount(
                         source,
@@ -344,8 +338,21 @@ public class NagraSmartcardGateway {
             );
         }
 
-        NagraBundledAccountResponse account =
-                nagraAdmClient.getBundledAccount(source, sn, accountId);
+        NagraBundledAccountResponse account;
+
+        try {
+            account = nagraAdmClient.getBundledAccount(
+                    source,
+                    sn,
+                    accountId
+            );
+        } catch (NagraException exception) {
+            if (Integer.valueOf(404).equals(exception.getHttpStatus())) {
+                throw new SmartcardNotFoundException(sn);
+            }
+
+            throw exception;
+        }
 
         if (account == null) {
             throw invalidBundledStatusResponse(
@@ -387,12 +394,21 @@ public class NagraSmartcardGateway {
                 endpoint
         );
 
-        NagraEntitlementResponse entitlement =
-                nagraRmgClient.getEntitlementsByAccountId(
-                        source,
-                        sn,
-                        accountId
-                );
+        NagraEntitlementResponse entitlement;
+
+        try {
+            entitlement = nagraRmgClient.getEntitlementsByAccountId(
+                    source,
+                    sn,
+                    accountId
+            );
+        } catch (NagraException exception) {
+            if (Integer.valueOf(404).equals(exception.getHttpStatus())) {
+                entitlement = null;
+            } else {
+                throw exception;
+            }
+        }
 
         return NagraSmartcardStatusSnapshot.bundled(
                 account,

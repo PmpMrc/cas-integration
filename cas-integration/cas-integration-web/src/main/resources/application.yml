@@ -11,15 +11,3 @@ management:
     web:
       exposure:
         include: health,info
-
-salesforce:
-  enabled: ${SALESFORCE_ENABLED:false}
-  token-url: ${SALESFORCE_TOKEN_URL:}
-  api-version: ${SALESFORCE_API_VERSION:}
-  client-id: ${SALESFORCE_CLIENT_ID:}
-  client-secret: ${SALESFORCE_CLIENT_SECRET:}
-  connect-timeout-ms: ${SALESFORCE_CONNECT_TIMEOUT_MS:5000}
-  read-timeout-ms: ${SALESFORCE_READ_TIMEOUT_MS:15000}
-  type-mapping:
-    "[CRM_HD_TEST]": TIVU_HD
-    "[CRM_4K_TEST]": TIVU_4K

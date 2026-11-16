@@ -2,7 +2,7 @@
   "name": "Cancel - virtual source test account",
   "request": {
     "method": "PUT",
-    "url": "/adm/v1/accounts/109687603246_TivuHD",
+    "url": "/adm/v1/accounts/109687603246_TivuVirtual",
     "headers": {
       "Content-Type": {
         "contains": "application/json"

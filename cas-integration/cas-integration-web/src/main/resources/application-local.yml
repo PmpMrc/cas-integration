@@ -20,3 +20,13 @@ nagra:
     cancel-account: "/adm/v1/accounts/{accountId}"
     get-bundled-account: "/adm/v1/bundled/accounts/{accountId}"
     purge-account: "/adm/v1/accounts/actions/purgeAccount/{accountId}"
+
+salesforce:
+  enabled: true
+  token-url: "http://localhost:9090/services/oauth2/token"
+  api-version: "v60.0"
+  client-id: "local-test-client"
+  client-secret: "local-test-secret"
+  type-mapping:
+    "[HD Merlin]": TIVU_HD
+    "[UHD Merlin]": TIVU_4K

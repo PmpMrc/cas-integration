@@ -2,7 +2,7 @@
   "name": "Purge - virtual source test account",
   "request": {
     "method": "DELETE",
-    "url": "/adm/v1/accounts/actions/purgeAccount/109687603246_TivuHD",
+    "url": "/adm/v1/accounts/actions/purgeAccount/109687603246_TivuVirtual",
     "headers": {
       "nv-source-id": {
         "equalTo": "2000"

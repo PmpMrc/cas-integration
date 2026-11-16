@@ -59,7 +59,7 @@ class SalesforceSmartcardClientTest {
                     );
 
                     assertEquals(
-                            "q=SELECT Id, Tipologia_Smart_Card__c "
+                            "q=SELECT Id, Tipologia_Smartcard__c, Stato_Smartcard_Virtuale__c "
                                     + "FROM Smartcard__c "
                                     + "WHERE Seriale_Smart_Card__c = '"
                                     + SN + "' LIMIT 2",
@@ -123,23 +123,21 @@ class SalesforceSmartcardClientTest {
     }
 
     @Test
-    void shouldRejectMissingType() {
+    void shouldReturnMissingTypeForResolutionByCaller() {
         server.expect(anything())
                 .andRespond(withSuccess(
                         "{\"totalSize\":1,\"done\":true,\"records\":["
-                                + "{\"Id\":\"test\",\"Tipologia_Smart_Card__c\":null}]}",
+                                + "{\"Id\":\"test\","
+                                + "\"Tipologia_Smartcard__c\":null,"
+                                + "\"Stato_Smartcard_Virtuale__c\":\"CRM_STATE_TEST\""
+                                + "}]}",
                         MediaType.APPLICATION_JSON
                 ));
 
-        SalesforceException error = assertThrows(
-                SalesforceException.class,
-                () -> client.findSmartcardType(SN)
-        );
+        SalesforceSmartcardData result = client.findSmartcard(SN);
 
-        assertEquals(
-                SalesforceException.FailureType.SMARTCARD_TYPE_MISSING,
-                error.getFailureType()
-        );
+        assertNull(result.getSmartcardType());
+        assertEquals("CRM_STATE_TEST", result.getCrmVirtualState());
 
         server.verify();
     }
@@ -233,6 +231,74 @@ class SalesforceSmartcardClientTest {
         server.verify();
     }
 
+    @Test
+    void shouldReturnTypeAndVirtualStateWithOneQuery() {
+        server.expect(anything())
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header("Authorization", "Bearer test-token"))
+                .andRespond(withSuccess(
+                        "{\"totalSize\":1,\"done\":true,\"records\":["
+                                + "{\"Id\":\"test\","
+                                + "\"Tipologia_Smartcard__c\":\"HD Merlin\","
+                                + "\"Stato_Smartcard_Virtuale__c\":\"CRM_STATE_TEST\""
+                                + "}]}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        SalesforceSmartcardData result = client.findSmartcard(SN);
+
+        assertEquals("HD Merlin", result.getSmartcardType());
+        assertEquals("CRM_STATE_TEST", result.getCrmVirtualState());
+
+        verify(tokenProvider, times(1)).getToken();
+        server.verify();
+    }
+
+    @Test
+    void shouldAllowNullVirtualState() {
+        server.expect(anything())
+                .andRespond(withSuccess(
+                        "{\"totalSize\":1,\"done\":true,\"records\":["
+                                + "{\"Id\":\"test\","
+                                + "\"Tipologia_Smartcard__c\":\"HD Merlin\","
+                                + "\"Stato_Smartcard_Virtuale__c\":null"
+                                + "}]}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        SalesforceSmartcardData result = client.findSmartcard(SN);
+
+        assertEquals("HD Merlin", result.getSmartcardType());
+        assertNull(result.getCrmVirtualState());
+
+        server.verify();
+    }
+
+    @Test
+    void shouldRejectNonTextualVirtualState() {
+        server.expect(anything())
+                .andRespond(withSuccess(
+                        "{\"totalSize\":1,\"done\":true,\"records\":["
+                                + "{\"Id\":\"test\","
+                                + "\"Tipologia_Smartcard__c\":\"HD Merlin\","
+                                + "\"Stato_Smartcard_Virtuale__c\":{}"
+                                + "}]}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        SalesforceException error = assertThrows(
+                SalesforceException.class,
+                () -> client.findSmartcard(SN)
+        );
+
+        assertEquals(
+                SalesforceException.FailureType.INVALID_RESPONSE,
+                error.getFailureType()
+        );
+
+        server.verify();
+    }
+
     private SalesforceTokenResponse token(String accessToken)
             throws Exception {
         return new ObjectMapper().readValue(
@@ -246,6 +312,6 @@ class SalesforceSmartcardClientTest {
     private String oneRecord(String type) {
         return "{\"totalSize\":1,\"done\":true,\"records\":["
                 + "{\"Id\":\"test-record\","
-                + "\"Tipologia_Smart_Card__c\":\"" + type + "\"}]}";
+                + "\"Tipologia_Smartcard__c\":\"" + type + "\"}]}";
     }
 }

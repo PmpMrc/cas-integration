@@ -1,8 +1,10 @@
 package it.tivusat.cas.application;
 
+import it.tivusat.cas.domain.SmartcardSource;
 import it.tivusat.cas.domain.SmartcardType;
 import it.tivusat.cas.infrastructure.salesforce.SalesforceException;
 import it.tivusat.cas.infrastructure.salesforce.SalesforceSmartcardClient;
+import it.tivusat.cas.infrastructure.salesforce.SalesforceSmartcardData;
 import it.tivusat.cas.infrastructure.salesforce.SalesforceSmartcardTypeMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -121,5 +123,70 @@ class SmartcardTypeResolverTest {
 
         assertSame(failure, actual);
         verifyNoInteractions(typeMapper);
+    }
+
+    @Test
+    void statusShouldResolvePhysicalTypeAndPreserveCrmState() {
+        when(salesforceClient.findSmartcard(SN))
+                .thenReturn(new SalesforceSmartcardData(
+                        "HD Merlin",
+                        "CRM_STATE_TEST"
+                ));
+
+        when(typeMapper.map("HD Merlin"))
+                .thenReturn(SmartcardType.TIVU_HD);
+
+        ResolvedSmartcardData result = resolver.resolveForStatus(
+                SN,
+                SmartcardSource.PHYSICAL
+        );
+
+        assertEquals(SmartcardType.TIVU_HD, result.getSmartcardType());
+        assertEquals("CRM_STATE_TEST", result.getCrmVirtualState());
+
+        verify(salesforceClient, times(1)).findSmartcard(SN);
+        verify(typeMapper).map("HD Merlin");
+        verifyNoMoreInteractions(salesforceClient, typeMapper);
+    }
+
+    @Test
+    void statusShouldUseVirtualTypeEvenWhenCrmTypeIsMissing() {
+        when(salesforceClient.findSmartcard(SN))
+                .thenReturn(new SalesforceSmartcardData(
+                        null,
+                        "CRM_STATE_TEST"
+                ));
+
+        ResolvedSmartcardData result = resolver.resolveForStatus(
+                SN,
+                SmartcardSource.VIRTUAL
+        );
+
+        assertEquals(
+                SmartcardType.TIVU_VIRTUAL,
+                result.getSmartcardType()
+        );
+        assertEquals("CRM_STATE_TEST", result.getCrmVirtualState());
+
+        verify(salesforceClient, times(1)).findSmartcard(SN);
+        verifyNoInteractions(typeMapper);
+        verifyNoMoreInteractions(salesforceClient);
+    }
+
+    @Test
+    void statusShouldPreserveNullCrmState() {
+        when(salesforceClient.findSmartcard(SN))
+                .thenReturn(new SalesforceSmartcardData("HD Merlin", null));
+
+        when(typeMapper.map("HD Merlin"))
+                .thenReturn(SmartcardType.TIVU_HD);
+
+        ResolvedSmartcardData result = resolver.resolveForStatus(
+                SN,
+                SmartcardSource.PHYSICAL
+        );
+
+        assertEquals(SmartcardType.TIVU_HD, result.getSmartcardType());
+        assertNull(result.getCrmVirtualState());
     }
 }

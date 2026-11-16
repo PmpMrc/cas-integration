@@ -16,3 +16,13 @@ nagra:
     cancel-account: "/adm/v1/accounts/{accountId}"
     get-bundled-account: "/adm/v1/bundled/accounts/{accountId}"
     purge-account: "/adm/v1/accounts/actions/purgeAccount/{accountId}"
+
+salesforce:
+  enabled: true
+  token-url: "<URL token Salesforce preprod>"
+  api-version: "<versione API>"
+  client-id: "<client ID ricevuto>"
+  client-secret: "<client secret ricevuto>"
+  type-mapping:
+    "[HD Merlin]": TIVU_HD
+    "[UHD Merlin]": TIVU_4K
